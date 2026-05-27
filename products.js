@@ -47,7 +47,7 @@ const PRODUCT_DB = [
         baudRate: 921600,
         firmwarePath: 'firmware/ai-car',
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
+            { tag: 'xiaozhi_car', date: '2026-05-27', latest: true, file: 'xiaozhi_car.bin', address: 0x0 },
         ],
     },
     {
