@@ -458,6 +458,12 @@ class ESPFlashApp {
         this.progressTitle.textContent = '正在烧录...';
 
         try {
+            // 重新同步（防止 bootloader 超时重启）
+            this.log('正在重新同步...', 'info');
+            await this.flasher._drainInput();
+            await this.flasher._sync();
+            this.log('同步成功，开始烧录', 'success');
+
             // 擦除
             if (this.eraseCheckbox.checked) {
                 await this.flasher.eraseFlash();
