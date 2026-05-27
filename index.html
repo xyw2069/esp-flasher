@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 在线烧录工具</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="top-bar">
+        <div class="top-bar-inner">
+            <a href="/" class="logo">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                </svg>
+                <span>FlashTool</span>
+            </a>
+            <nav class="top-nav">
+                <a href="#" class="nav-link active">烧录工具</a>
+                <a href="#" class="nav-link">固件管理</a>
+                <a href="#" class="nav-link">使用文档</a>
+            </nav>
+            <div class="header-actions">
+                <span class="browser-check" id="browserStatus" title="浏览器兼容性">
+                    <span class="check-dot" id="browserDot"></span>
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- 侧边栏 - 产品信息 -->
+        <aside class="sidebar">
+            <div class="product-panel">
+                <div class="panel-header">
+                    <h3>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="7" height="7" rx="1"/>
+                            <rect x="14" y="3" width="7" height="7" rx="1"/>
+                            <rect x="3" y="14" width="7" height="7" rx="1"/>
+                            <rect x="14" y="14" width="7" height="7" rx="1"/>
+                        </svg>
+                        选择产品
+                    </h3>
+                </div>
+                <div class="product-list" id="productList">
+                    <!-- 动态加载产品列表 -->
+                </div>
+            </div>
+
+            <div class="device-panel" id="devicePanel" style="display:none;">
+                <div class="panel-header">
+                    <h3>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="6" width="20" height="12" rx="2"/>
+                            <line x1="12" y1="18" x2="12" y2="22"/>
+                        </svg>
+                        设备信息
+                    </h3>
+                </div>
+                <div class="device-info" id="deviceInfo"></div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 固件信息栏 -->
+            <section class="info-bar" id="infoBar">
+                <div class="info-chip">
+                    <span class="info-label">产品</span>
+                    <span class="info-value" id="infoProduct">未选择</span>
+                </div>
+                <div class="info-divider"></div>
+                <div class="info-chip">
+                    <span class="info-label">芯片</span>
+                    <span class="info-value" id="infoChip">-</span>
+                </div>
+                <div class="info-divider"></div>
+                <div class="info-chip">
+                    <span class="info-label">固件版本</span>
+                    <span class="info-value" id="infoFirmware">-</span>
+                </div>
+                <div class="info-divider"></div>
+                <div class="info-chip">
+                    <span class="info-label">状态</span>
+                    <span class="info-value status-value" id="infoStatus">就绪</span>
+                </div>
+            </section>
+
+            <!-- 步骤向导 -->
+            <div class="step-indicator">
+                <div class="step active" data-step="1">
+                    <div class="step-num">1</div>
+                    <span>选择固件</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" data-step="2">
+                    <div class="step-num">2</div>
+                    <span>连接设备</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" data-step="3">
+                    <div class="step-num">3</div>
+                    <span>开始烧录</span>
+                </div>
+            </div>
+
+            <div class="steps-container">
+                <!-- 第一步：选择固件 -->
+                <section class="card step-panel active" id="step1">
+                    <h2 class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                        固件选择
+                    </h2>
+
+                    <!-- 版本选择 -->
+                    <div class="firmware-select-group">
+                        <label class="field-label">固件版本</label>
+                        <div class="version-select-row">
+                            <select id="versionSelect" class="select-input" disabled>
+                                <option value="">请先选择产品</option>
+                            </select>
+                            <button class="btn btn-outline btn-sm" id="refreshVersions" disabled>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 自定义上传 -->
+                    <div class="custom-upload-section">
+                        <label class="field-label">
+                            自定义固件
+                            <span class="label-badge">可选</span>
+                        </label>
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" id="firmwareFile" accept=".bin" multiple>
+                            <div class="upload-content">
+                                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="17 8 12 3 7 8"/>
+                                    <line x1="12" y1="3" x2="12" y2="15"/>
+                                </svg>
+                                <p>拖拽 .bin 文件到此处 或点击选择</p>
+                                <p class="upload-hint">支持多文件，可单独设置烧录地址</p>
+                            </div>
+                        </div>
+                        <div class="file-list" id="fileList"></div>
+                    </div>
+
+                    <!-- 烧录配置 -->
+                    <div class="config-section">
+                        <label class="field-label">烧录配置</label>
+                        <div class="config-grid">
+                            <div class="config-item">
+                                <label>波特率</label>
+                                <select id="baudRate" class="select-input">
+                                    <option value="921600">921600</option>
+                                    <option value="460800" selected>460800</option>
+                                    <option value="230400">230400</option>
+                                    <option value="115200">115200</option>
+                                </select>
+                            </div>
+                            <div class="config-item">
+                                <label>Flash 大小</label>
+                                <select id="flashSize" class="select-input">
+                                    <option value="16MB">16 MB</option>
+                                    <option value="8MB">8 MB</option>
+                                    <option value="4MB" selected>4 MB</option>
+                                    <option value="2MB">2 MB</option>
+                                </select>
+                            </div>
+                            <div class="config-item">
+                                <label>Flash 模式</label>
+                                <select id="flashMode" class="select-input">
+                                    <option value="dio" selected>DIO</option>
+                                    <option value="qio">QIO</option>
+                                    <option value="dout">DOUT</option>
+                                </select>
+                            </div>
+                            <div class="config-item">
+                                <label>SPI 速度</label>
+                                <select id="flashFreq" class="select-input">
+                                    <option value="80m" selected>80 MHz</option>
+                                    <option value="40m">40 MHz</option>
+                                    <option value="20m">20 MHz</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="options-row">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="eraseFlash">
+                            <span class="checkmark"></span>
+                            <span>烧录前擦除 Flash</span>
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="verifyFlash" checked>
+                            <span class="checkmark"></span>
+                            <span>烧录后验证</span>
+                        </label>
+                    </div>
+
+                    <div class="step-actions">
+                        <button class="btn btn-primary" id="toStep2" disabled>
+                            下一步：连接设备
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 第二步：连接设备 -->
+                <section class="card step-panel" id="step2">
+                    <h2 class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="4" y="4" width="16" height="16" rx="2"/>
+                            <circle cx="9" cy="10" r="1"/>
+                            <line x1="15" y1="10" x2="15" y2="10"/>
+                            <circle cx="9" cy="15" r="1"/>
+                            <line x1="15" y1="15" x2="15" y2="15"/>
+                        </svg>
+                        连接设备
+                    </h2>
+
+                    <div class="connect-instructions">
+                        <div class="instruction-item">
+                            <span class="instruction-num">1</span>
+                            <div>
+                                <strong>将设备进入下载模式</strong>
+                                <p>按住 BOOT 键，按一下 EN/RESET 键，然后松开 BOOT 键</p>
+                            </div>
+                        </div>
+                        <div class="instruction-item">
+                            <span class="instruction-num">2</span>
+                            <div>
+                                <strong>通过 USB 连接设备</strong>
+                                <p>使用 USB 数据线将 ESP32 开发板连接到电脑</p>
+                            </div>
+                        </div>
+                        <div class="instruction-item">
+                            <span class="instruction-num">3</span>
+                            <div>
+                                <strong>点击连接并选择串口</strong>
+                                <p>在弹出的对话框中，选择对应的串口设备</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="serial-section">
+                        <div class="serial-controls">
+                            <button id="connectBtn" class="btn btn-primary btn-lg">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                                    <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/>
+                                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
+                                </svg>
+                                连接设备
+                            </button>
+                            <select id="serialPort" class="select-input" disabled>
+                                <option value="">选择串口</option>
+                            </select>
+                        </div>
+                        <div class="connection-status" id="connectionStatus">
+                            <span class="status-dot disconnected"></span>
+                            <span class="status-text">未连接</span>
+                            <span class="status-detail" id="statusDetail"></span>
+                        </div>
+                    </div>
+
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" id="backStep1">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="19" y1="12" x2="5" y2="12"/>
+                                <polyline points="12 19 5 12 12 5"/>
+                            </svg>
+                            上一步
+                        </button>
+                        <button class="btn btn-primary" id="toStep3" disabled>
+                            下一步：开始烧录
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+
+                <!-- 第三步：开始烧录 -->
+                <section class="card step-panel" id="step3">
+                    <h2 class="card-title">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
+                        烧录进度
+                    </h2>
+
+                    <!-- 烧录概要 -->
+                    <div class="flash-summary" id="flashSummary">
+                        <div class="summary-item">
+                            <span class="summary-label">产品</span>
+                            <span class="summary-value" id="sumProduct">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">芯片</span>
+                            <span class="summary-value" id="sumChip">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">固件</span>
+                            <span class="summary-value" id="sumFirmware">-</span>
+                        </div>
+                        <div class="summary-item">
+                            <span class="summary-label">总大小</span>
+                            <span class="summary-value" id="sumSize">-</span>
+                        </div>
+                    </div>
+
+                    <!-- 进度条 -->
+                    <div class="progress-section">
+                        <div class="progress-header">
+                            <span class="progress-title" id="progressTitle">等待开始...</span>
+                            <span class="progress-percent" id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-track">
+                            <div class="progress-fill" id="progressFill"></div>
+                            <div class="progress-glow" id="progressGlow"></div>
+                        </div>
+                        <div class="progress-stage-text" id="progressStage">就绪</div>
+                    </div>
+
+                    <!-- 文件烧录列表 -->
+                    <div class="flash-file-list" id="flashFileList"></div>
+
+                    <div class="step-actions">
+                        <button class="btn btn-ghost" id="backStep2">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="19" y1="12" x2="5" y2="12"/>
+                                <polyline points="12 19 5 12 12 5"/>
+                            </svg>
+                            上一步
+                        </button>
+                        <div class="flash-actions">
+                            <button class="btn btn-flash btn-lg" id="flashBtn" disabled>
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                                开始烧录
+                            </button>
+                            <button class="btn btn-danger btn-lg" id="stopBtn" style="display:none;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="6" y="6" width="12" height="12" rx="1"/>
+                                </svg>
+                                停止
+                            </button>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 日志面板 -->
+            <section class="card log-panel">
+                <div class="log-header">
+                    <h2 class="card-title" style="margin-bottom:0;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 17 10 11 4 5"/>
+                            <line x1="12" y1="19" x2="20" y2="19"/>
+                        </svg>
+                        烧录日志
+                    </h2>
+                    <div class="log-actions">
+                        <button id="clearLog" class="btn btn-ghost btn-sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"/>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                            清空
+                        </button>
+                        <button id="exportLog" class="btn btn-ghost btn-sm">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="7 10 12 15 17 10"/>
+                                <line x1="12" y1="15" x2="12" y2="3"/>
+                            </svg>
+                            导出
+                        </button>
+                        <label class="checkbox-label" style="margin-left:8px;">
+                            <input type="checkbox" id="autoScroll" checked>
+                            <span class="checkmark"></span>
+                            <span>自动滚动</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="log-area" id="logArea">
+                    <div class="log-line system">[系统] Web Serial API 检测中...</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="products.js"></script>
+    <script src="esp32-flasher.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
