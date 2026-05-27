@@ -1,553 +1,118 @@
 /**
- * ESP32 Flasher – 基于 Web Serial API 的 ROM Bootloader 协议实现
- * 支持 ESP32 / ESP32-S2 / ESP32-S3 / ESP32-C3 / ESP32-C2 / ESP32-H2
- *
- * 协议参考: https://docs.espressif.com/projects/esptool/en/latest/esp32/advanced-topics/serial-protocol.html
+ * ESP32 Flasher — 基于 esptool-js 官方库
+ * https://github.com/nickytonline/esptool-js
  */
 
 class ESP32Flasher {
     constructor(options = {}) {
-        this.port = null;
-        this.readableStreamClosed = null;
-        this.writableStreamClosed = null;
-        this.reader = null;
-        this.writer = null;
-
-        this.chipType  = options.chipType  || 'esp32c3';
-        this.baudRate  = options.baudRate  || 460800;
-        this.onLog     = options.onLog     || (() => {});
+        this.chipType   = options.chipType || 'esp32c3';
+        this.baudRate   = options.baudRate || 460800;
+        this.flashSize  = options.flashSize || '4MB';
+        this.flashMode  = options.flashMode || 'dio';
+        this.flashFreq  = options.flashFreq || '40m';
+        this.onLog      = options.onLog     || (() => {});
         this.onProgress = options.onProgress || (() => {});
 
+        this.transport = null;
+        this.esploader = null;
+        this.chip      = null;
         this.isFlashing = false;
         this.isAborted  = false;
-        this.synced     = false;
-
-        // ROM bootloader 命令码
-        this.CMD = {
-            READ_REG:         0x0A,
-            WRITE_REG:        0x09,
-            SPI_ATTACH:       0x0D,
-            CHANGE_BAUDRATE:  0x0F,
-            FLASH_BEGIN:      0x02,
-            FLASH_DATA:       0x03,
-            FLASH_END:        0x04,
-            MEM_BEGIN:        0x05,
-            MEM_END:          0x06,
-            SYNC:             0x08,
-            READ_FLASH:       0x0E,
-            ERASE_FLASH:      0xD0,
-            ERASE_REGION:     0xD1,
-        };
-
-        this.RESPONSE = {
-            SUCCESS: 0x01,
-            ERROR:   0x05,
-        };
     }
 
-    /* ========================= 公开 API ========================= */
+    log(msg, type = 'info') { this.onLog(msg, type); }
 
     async connect() {
-        try {
-            this.port = await navigator.serial.requestPort();
-            await this._openPort(this.baudRate);
-            this.log('串口已连接', 'success');
-        } catch (err) {
-            this.log(`连接失败: ${err.message}`, 'error');
-            throw err;
-        }
+        this.log('正在请求串口...', 'info');
+        const port = await navigator.serial.requestPort();
+        this.transport = new Transport(port, true);
+
+        this.log('正在初始化...', 'info');
+        this.esploader = new ESPLoader({
+            transport:    this.transport,
+            baudrate:     this.baudRate,
+            romBaudrate:  115200,
+            terminal:     { clean() {}, writeLine(msg) {}, write(msg) {} },
+            enableTracing: false,
+        });
+
+        this.log('正在同步并识别芯片...', 'info');
+        this.chip = await this.esploader.main_fn();
+        this.log(`芯片已识别: ${this.chip}`, 'success');
     }
 
     async disconnect() {
-        this._stopKeepAlive();
-        this._readerCancelled = true;
-        try {
-            if (this.reader) {
-                await this.reader.cancel();
-                await this.readableStreamClosed?.catch(() => {});
-            }
-            if (this.writer) {
-                this.writer.releaseLock();
-            }
-            if (this.port?.readable) {
-                await this.port.close();
-            }
-        } catch (_) {}
-        this.reader = null;
-        this.writer = null;
-        this.port   = null;
-        this.synced = false;
+        if (this.transport) {
+            try { await this.transport.disconnect(); } catch (_) {}
+            this.transport = null;
+            this.esploader = null;
+        }
         this.log('已断开连接', 'info');
     }
 
-    async syncAndDetect() {
-        if (!this.port) throw new Error('串口未连接');
-
-        this.log('正在同步芯片...', 'info');
-
-        // 清空接收缓冲区
-        await this._drainInput();
-
-        // 发送同步帧，带多次重试（等待用户手动进入下载模式）
-        const resp = await this._sync();
-
-        this.log('同步成功', 'success');
-        this.synced = true;
-
-        // 启动保活定时器，防止 bootloader 超时重启
-        this._startKeepAlive();
-
-        return this.chipType;
-    }
-
-    async eraseFlash() {
-        this.log('正在擦除 Flash (全片擦除)...', 'info');
-        this.progress(2, '擦除中');
-
-        const packet = this._buildCommand(this.CMD.ERASE_FLASH, new Uint8Array(0));
-        await this._sendCommand(packet);
-        await this._readResponse(10000, 'erase');
-
-        this.log('Flash 擦除完成', 'success');
-        this.progress(5, '擦除完成');
-    }
-
     /**
-     * 烧录单个文件
-     * @param {Uint8Array} data     固件数据
-     * @param {number}     address  烧录起始地址
-     * @param {string}     name     文件名
-     * @param {Function}   onPct    进度回调 (percent, stage)
+     * 烧录固件
+     * @param {{ name: string, address: number, data: string }[]} files
+     *   data 是 base64 编码的固件内容
      */
-    async flashOneFile(data, address, name, onPct) {
-        if (!this.port) throw new Error('串口未连接');
-        this._stopKeepAlive();
+    async flash(files) {
+        if (!this.esploader) throw new Error('设备未连接');
         this.isFlashing = true;
         this.isAborted  = false;
 
-        this.log(`开始烧录: ${name} -> 0x${address.toString(16)}`, 'info');
+        this.log(`开始烧录 ${files.length} 个文件...`, 'info');
 
-        const blockSize = 0x0400;   // 1 KB per packet
-        const numBlocks = Math.ceil(data.byteLength / blockSize);
+        // 监听写入进度
+        const self = this;
+        const originalWriter = this.esploader.write_flash;
 
-        // FLASH_BEGIN
-        await this._flashBegin(data.byteLength, numBlocks, address);
+        const fileArray = files.map(f => ({
+            data:    f.data,
+            address: f.address,
+        }));
 
-        for (let seq = 0; seq < numBlocks; seq++) {
-            if (this.isAborted) throw new Error('烧录被用户中止');
-
-            const start = seq * blockSize;
-            const chunk = data.slice(start, start + blockSize);
-            const paddedLen = Math.ceil(chunk.byteLength / 4) * 4;
-            const padded = new Uint8Array(paddedLen);
-            padded.set(chunk);
-
-            await this._flashData(padded, seq);
-
-            const pct = Math.floor((seq + 1) / numBlocks * 100);
-            onPct?.(pct, `烧录 ${name}  (${seq + 1}/${numBlocks})`);
-
-            if (seq % 8 === 7) await this._sleep(2);
-        }
-
-        // FLASH_END（不重启，等最后一个文件）
-        await this._flashFinish(false);
-
-        this.isFlashing = false;
-    }
-
-    /**
-     * 烧录多个文件并重启
-     * @param {{ name: string, address: number, data: Uint8Array }[]} firmwareEntries
-     * @param {Function} onFileDone  单文件完成回调
-     */
-    async flash(firmwareEntries, onFileDone) {
-        if (!this.port) throw new Error('串口未连接');
-        this.isFlashing = true;
-        this.isAborted  = false;
-
-        const totalBytes = firmwareEntries.reduce((s, f) => s + f.data.byteLength, 0);
-        let   written    = 0;
-
-        for (const entry of firmwareEntries) {
-            if (this.isAborted) throw new Error('烧录被用户中止');
-            this._setCurrentFile(entry.name);
-            await this.flashOneFile(entry.data, entry.address, entry.name, (pct) => {
-                const doneBytes = Math.floor(totalBytes * pct / 100);
-                this.progress(Math.floor((written + doneBytes) / totalBytes * 100), `烧录 ${entry.name}`);
+        try {
+            await this.esploader.write_flash({
+                fileArray:  fileArray,
+                flashSize:  this.flashSize,
+                flashMode:  this.flashMode,
+                flashFreq:  this.flashFreq,
+                compress:   true,
+                reportProgress: (fileIndex, written, total) => {
+                    if (self.isAborted) throw new Error('中止');
+                    const file = files[fileIndex];
+                    if (file) {
+                        const pct = Math.floor((written / total) * 100);
+                        self.onProgress(pct, `烧录 ${file.name}  (${written}/${total})`);
+                        if (written === total) {
+                            self.log(`  ${file.name} 完成`, 'success');
+                        }
+                    }
+                },
             });
-            written += entry.data.byteLength;
-            this._setFileDone(entry.name);
-            onFileDone?.(entry.name);
-        }
 
-        // 所有文件完成，重启
-        await this._flashFinish(true);
-        this.progress(100, '完成');
-        this.isFlashing = false;
-    }
+            this.onProgress(100, '完成');
+            this.log('全部烧录完成', 'success');
 
-    _startKeepAlive() {
-        this._stopKeepAlive();
-        this._keepAliveTimer = setInterval(async () => {
-            if (this.isFlashing) return;
-            try {
-                // 发送 READ_REG 读取芯片 ID 寄存器作为保活
-                const payload = new Uint8Array(16);
-                this._writeU32LE(payload, 0, 0x40001000);
-                const pkt = this._buildCommand(this.CMD.READ_REG, payload);
-                await this._sendCommand(pkt);
-                await this._readResponse(200, 'keepalive').catch(() => {});
-            } catch (_) {}
-        }, 1500);
-    }
+            // 重启设备
+            try { await this.esploader.hard_reset(); } catch (_) {}
 
-    _stopKeepAlive() {
-        if (this._keepAliveTimer) {
-            clearInterval(this._keepAliveTimer);
-            this._keepAliveTimer = null;
+        } catch (err) {
+            if (this.isAborted) {
+                this.log('烧录已中止', 'warning');
+            } else {
+                throw err;
+            }
+        } finally {
+            this.isFlashing = false;
         }
     }
 
     abort() {
         this.isAborted = true;
-        this._stopKeepAlive();
+        this.isFlashing = false;
         this.log('正在停止...', 'warning');
     }
-
-    /* ========================= 内部 – 烧录流程 ========================= */
-
-    async _flashOne(data, address, onProgress) {
-        const blockSize = 0x0400;   // 1 KB per packet
-        const numBlocks = Math.ceil(data.byteLength / blockSize);
-
-        this.log(`  地址 0x${address.toString(16).padStart(6,'0')}，${data.byteLength} bytes，${numBlocks} 块`, 'info');
-
-        // FLASH_BEGIN
-        await this._flashBegin(data.byteLength, numBlocks, address);
-
-        // 分块发送
-        for (let seq = 0; seq < numBlocks; seq++) {
-            if (this.isAborted) throw new Error('中止');
-
-            const start = seq * blockSize;
-            const chunk = data.slice(start, start + blockSize);
-            // 对齐到 4 字节
-            const paddedLen = Math.ceil(chunk.byteLength / 4) * 4;
-            const padded = new Uint8Array(paddedLen);
-            padded.set(chunk);
-
-            await this._flashData(padded, seq);
-            onProgress?.(chunk.byteLength);
-
-            // 防止缓冲区溢出
-            if (seq % 8 === 7) await this._sleep(2);
-        }
-    }
-
-    async _flashBegin(size, numBlocks, offset) {
-        const payload = new Uint8Array(16);
-        this._writeU32LE(payload, 0, size);
-        this._writeU32LE(payload, 4, numBlocks);
-        this._writeU32LE(payload, 8, 0x0400);       // block size
-        this._writeU32LE(payload, 12, offset);
-
-        const pkt = this._buildCommand(this.CMD.FLASH_BEGIN, payload);
-        await this._sendCommand(pkt);
-        await this._readResponse(5000, 'flash_begin');
-    }
-
-    async _flashData(data, seq) {
-        const header = new Uint8Array(16);
-        this._writeU32LE(header, 0, data.byteLength);
-        this._writeU32LE(header, 4, seq);
-        // offset, stays 0
-
-        const pkt = new Uint8Array(16 + data.byteLength);
-        pkt.set(header);
-        pkt.set(data, 16);
-
-        const cmdPkt = this._buildCommand(this.CMD.FLASH_DATA, pkt);
-        await this._sendCommand(cmdPkt);
-        await this._readResponse(5000, 'flash_data');
-    }
-
-    async _flashFinish(reboot) {
-        const payload = new Uint8Array(4);
-        this._writeU32LE(payload, 0, reboot ? 1 : 0);
-
-        const pkt = this._buildCommand(this.CMD.FLASH_END, payload);
-        await this._sendCommand(pkt);
-        await this._readResponse(2000, 'flash_end');
-    }
-
-    /* ========================= 内部 – Bootloader 同步 ========================= */
-
-    async _drainInput() {
-        // 读取并丢弃串口中的残留数据
-        try {
-            if (this.port?.readable) {
-                const reader = this.port.readable.getReader();
-                try {
-                    while (true) {
-                        const { value, done } = await Promise.race([
-                            reader.read(),
-                            this._sleepTimeout(100),
-                        ]);
-                        if (done || !value || value.byteLength === 0) break;
-                    }
-                } finally {
-                    reader.releaseLock();
-                }
-            }
-        } catch (_) {}
-    }
-
-    async _sync() {
-        // 0x07 0x07 0x12 0x20 + 32 bytes of 0x55 = 36 bytes sync frame
-        const syncFrame = new Uint8Array(36);
-        syncFrame[0] = 0x07;
-        syncFrame[1] = 0x07;
-        syncFrame[2] = 0x12;
-        syncFrame[3] = 0x20;
-        for (let i = 4; i < 36; i++) syncFrame[i] = 0x55;
-
-        // 尝试最多 20 次，每次间隔 200ms（给用户时间手动进下载模式）
-        const maxRetries = 20;
-        const syncCmd = this._buildCommand(this.CMD.SYNC, syncFrame);
-
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
-            if (attempt === 0) {
-                this.log('请确保设备已进入下载模式（按住 BOOT → 按 RESET → 松开 BOOT）', 'info');
-            }
-            if (attempt === 5) {
-                this.log('正在等待设备响应... 请确认已进入下载模式', 'warning');
-            }
-
-            try {
-                await this._sendCommand(syncCmd);
-                const resp = await this._readResponse(500, 'sync');
-                return resp;
-            } catch (_) {
-                await this._sleep(200);
-            }
-        }
-        throw new Error('同步失败：无法与 Bootloader 通信，请确认设备已进入下载模式');
-    }
-
-    async _readRegister(addr) {
-        const payload = new Uint8Array(16);
-        this._writeU32LE(payload, 0, addr);
-
-        const pkt = this._buildCommand(this.CMD.READ_REG, payload);
-        await this._sendCommand(pkt);
-        const resp = await this._readResponse(2000, 'read_reg');
-        return this._readU32LE(resp, 0);
-    }
-
-    _identifyChip(chipId) {
-        // 常见芯片 ID 映射（EFUSE magic value）
-        const chipMap = {
-            0x000007c6: 'esp32c3',
-            0x00000009: 'esp32s3',
-            0x00000000: 'esp32',    // 0 = fallback
-            0x00000007: 'esp32s2',
-        };
-        // 简化处理：直接使用前端选中的类型
-        return this.chipType;
-    }
-
-    /* ========================= 内部 – SLIP 帧 ========================= */
-
-    _buildCommand(code, payload) {
-        // 命令帧: direction(1) | command(1) | size(2 LE) | checksum(4 LE,unused) | payload
-        const dir   = 0x00; // host → target
-        const frame = new Uint8Array(8 + payload.byteLength);
-        frame[0] = dir;
-        frame[1] = code;
-        this._writeU16LE(frame, 2, payload.byteLength);
-        // checksum 0
-        frame.set(payload, 8);
-        return this._slipEncode(frame);
-    }
-
-    _slipEncode(data) {
-        const encoded = [];
-        encoded.push(0xC0); // SLIP start
-        for (let i = 0; i < data.byteLength; i++) {
-            const b = data[i];
-            if (b === 0xC0) {
-                encoded.push(0xDB, 0xDC);
-            } else if (b === 0xDB) {
-                encoded.push(0xDB, 0xDD);
-            } else {
-                encoded.push(b);
-            }
-        }
-        encoded.push(0xC0); // SLIP end
-        return new Uint8Array(encoded);
-    }
-
-    _slipDecode(buf) {
-        const decoded = [];
-        let i = 0;
-        while (i < buf.byteLength) {
-            if (buf[i] === 0xC0) { i++; continue; }
-            if (buf[i] === 0xDB) {
-                if (i + 1 < buf.byteLength) {
-                    if (buf[i + 1] === 0xDC) { decoded.push(0xC0); i += 2; continue; }
-                    if (buf[i + 1] === 0xDD) { decoded.push(0xDB); i += 2; continue; }
-                }
-                decoded.push(buf[i]); i++;
-            } else {
-                decoded.push(buf[i]); i++;
-            }
-        }
-        return new Uint8Array(decoded);
-    }
-
-    /* ========================= 内部 – 串口读写 ========================= */
-
-    async _sendCommand(encoded) {
-        if (!this.port?.writable) throw new Error('串口不可写');
-        if (!this.writer) {
-            this.writer = this.port.writable.getWriter();
-        }
-        await this.writer.write(encoded);
-    }
-
-    async _readResponse(timeoutMs, label) {
-        const deadline = Date.now() + timeoutMs;
-        let buffer = new Uint8Array(0);
-
-        while (Date.now() < deadline) {
-            const chunk = await this._rawRead(64);
-            if (chunk) {
-                buffer = this._concatU8(buffer, chunk);
-                // 响应帧以 0xC0 结尾
-                if (buffer.byteLength > 2 && buffer[buffer.byteLength - 1] === 0xC0) {
-                    break;
-                }
-            } else {
-                await this._sleep(10);
-            }
-        }
-
-        if (buffer.byteLength === 0) {
-            throw new Error(`${label}: 响应超时`);
-        }
-
-        // 找到最后一个 SLIP 帧
-        let frameStart = -1;
-        for (let i = buffer.byteLength - 1; i >= 0; i--) {
-            if (buffer[i] === 0xC0) {
-                // 向前找匹配的起始 0xC0
-                for (let j = i - 1; j >= 0; j--) {
-                    if (buffer[j] === 0xC0) {
-                        frameStart = j;
-                        break;
-                    }
-                }
-                if (frameStart === -1) frameStart = 0;
-                break;
-            }
-        }
-
-        if (frameStart === -1) throw new Error(`${label}: 无 SLIP 帧`);
-
-        const frame = buffer.slice(frameStart);
-        const decoded = this._slipDecode(frame);
-
-        if (decoded.byteLength < 8) {
-            throw new Error(`${label}: 响应帧过短 (${decoded.byteLength} bytes)`);
-        }
-
-        const dir      = decoded[0];
-        const cmdCode  = decoded[1];
-        const size     = this._readU16LE(decoded, 2);
-        const status   = decoded[8]; // 第一个 payload 字节 = 状态
-
-        if (status !== this.RESPONSE.SUCCESS && status !== 0x00) {
-            // status 0x00 在一些芯片上也表示成功（取决于帧长度）
-            if (decoded.byteLength > 9) {
-                const errCode = decoded[9];
-                this.log(`命令 ${cmdCode.toString(16)} 错误: status=0x${status.toString(16)} error=0x${errCode.toString(16)}`, 'warning');
-            }
-        }
-
-        // 返回 payload 部分（跳过 8 字节头）
-        return decoded.byteLength > 8 ? decoded.slice(8) : decoded;
-    }
-
-    async _rawRead(maxBytes) {
-        if (!this.port?.readable) return null;
-        try {
-            // 每次读取都获取新 reader 并立即释放，避免 reader 锁冲突
-            const reader = this.port.readable.getReader();
-            try {
-                const result = await Promise.race([
-                    reader.read(),
-                    this._sleepTimeout(80),
-                ]);
-                if (result && result.value && result.value.byteLength > 0) {
-                    return result.value;
-                }
-            } finally {
-                reader.releaseLock();
-            }
-        } catch (err) {
-            // stream locked or other error, ignore
-        }
-        return null;
-    }
-
-    async _openPort(baud) {
-        await this.port.open({
-            baudRate: baud,
-            dataBits: 8,
-            stopBits: 1,
-            parity: 'none',
-            bufferSize: 4096,
-        });
-        this.writer = null;
-        this.reader = null;
-    }
-
-    /* ========================= 工具方法 ========================= */
-
-    _sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-    _sleepTimeout(ms) { return new Promise(r => setTimeout(() => r({ value: undefined, done: false }), ms)); }
-
-    _concatU8(a, b) {
-        const c = new Uint8Array(a.byteLength + b.byteLength);
-        c.set(a); c.set(b, a.byteLength);
-        return c;
-    }
-
-    _writeU32LE(buf, off, val) {
-        buf[off]     = val & 0xFF;
-        buf[off + 1] = (val >>> 8) & 0xFF;
-        buf[off + 2] = (val >>> 16) & 0xFF;
-        buf[off + 3] = (val >>> 24) & 0xFF;
-    }
-
-    _writeU16LE(buf, off, val) {
-        buf[off]     = val & 0xFF;
-        buf[off + 1] = (val >>> 8) & 0xFF;
-    }
-
-    _readU32LE(buf, off) {
-        return buf[off] | (buf[off+1] << 8) | (buf[off+2] << 16) | (buf[off+3] << 24) >>> 0;
-    }
-
-    _readU16LE(buf, off) {
-        return buf[off] | (buf[off+1] << 8);
-    }
-
-    log(message, type = 'info') { this.onLog(message, type); }
-    progress(percent, stage = '') { this.onProgress(percent, stage); }
-    _setCurrentFile(name) { this.onProgress(undefined, undefined, { currentFile: name }); }
-    _setFileDone(name)    { this.onProgress(undefined, undefined, { fileDone: name }); }
 }
 
 window.ESP32Flasher = ESP32Flasher;

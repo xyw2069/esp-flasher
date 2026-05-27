@@ -322,17 +322,15 @@ class ESPFlashApp {
             this.flasher = new ESP32Flasher({
                 chipType,
                 baudRate,
+                flashSize: this.flashSizeSelect.value,
+                flashMode: this.flashModeSelect.value,
+                flashFreq: this.flashFreqSelect.value,
                 onLog:     (msg, type) => this.log(msg, type),
                 onProgress: (pct, stage, extra) => this.handleProgress(pct, stage, extra),
             });
 
             await this.flasher.connect();
-
-            // 同步 bootloader 并检测芯片
-            this.log('正在进入下载模式...', 'info');
-            this.setStatus('busy', '同步中...');
-            const chip = await this.flasher.syncAndDetect();
-            this.log(`同步成功，芯片: ${CHIP_LABELS[chip] || chip}`, 'success');
+            this.log(`芯片: ${this.flasher.chip}`, 'success');
 
             this.isConnected = true;
 
@@ -458,39 +456,28 @@ class ESPFlashApp {
         this.progressTitle.textContent = '正在烧录...';
 
         try {
-            // 重新同步（防止 bootloader 超时重启）
-            this.log('正在重新同步...', 'info');
-            await this.flasher._drainInput();
-            await this.flasher._sync();
-            this.log('同步成功，开始烧录', 'success');
+            // 构造 esptool-js 需要的文件数组（data 为 base64 编码）
+            const files = this.firmwareFiles.map(fw => ({
+                name:    fw.name,
+                address: fw.address,
+                data:    this.uint8ToBase64(fw.data),
+            }));
 
-            // 擦除
-            if (this.eraseCheckbox.checked) {
-                await this.flasher.eraseFlash();
-            }
-
-            // 逐个烧录
-            for (let i = 0; i < this.firmwareFiles.length; i++) {
-                if (this.flasher.isAborted) break;
-                const fw = this.firmwareFiles[i];
+            for (const fw of this.firmwareFiles) {
                 this.markFileStatus(fw.name, 'flashing');
-                this.log(`烧录 [${i + 1}/${this.firmwareFiles.length}]: ${fw.name} -> 0x${fw.address.toString(16)}`, 'info');
-
-                await this.flasher.flashOneFile(fw.data, fw.address, fw.name,
-                    (pct, stage) => this.updateProgress(pct, stage)
-                );
-
-                this.markFileStatus(fw.name, 'done');
-                this.log(`✓ ${fw.name} 完成`, 'success');
             }
 
-            this.updateProgress(100, '完成');
+            await this.flasher.flash(files);
+
+            for (const fw of this.firmwareFiles) {
+                this.markFileStatus(fw.name, 'done');
+            }
+
             this.progressTitle.textContent = '烧录完成';
             this.toast('烧录完成！', 'success');
             this.log('===== 全部烧录完成 =====', 'success');
             this.setStatus('ready', '完成');
 
-            // 自动断开
             setTimeout(() => this.disconnect(), 2000);
 
         } catch (err) {
@@ -501,6 +488,14 @@ class ESPFlashApp {
             this.flashBtn.style.display = 'inline-flex';
             this.stopBtn.style.display  = 'none';
         }
+    }
+
+    uint8ToBase64(uint8) {
+        let binary = '';
+        for (let i = 0; i < uint8.byteLength; i++) {
+            binary += String.fromCharCode(uint8[i]);
+        }
+        return btoa(binary);
     }
 
     stopFlash() {
