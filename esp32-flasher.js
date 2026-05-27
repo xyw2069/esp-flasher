@@ -82,20 +82,17 @@ class ESP32Flasher {
     async syncAndDetect() {
         if (!this.port) throw new Error('串口未连接');
 
-        this.log('正在同步并检测芯片...', 'info');
+        this.log('正在同步芯片...', 'info');
 
-        // 重置序列端口，确保进入 bootloader
-        await this._resetIntoBootloader();
+        // 清空接收缓冲区
+        await this._drainInput();
 
-        // 发送同步帧
+        // 发送同步帧，带多次重试（等待用户手动进入下载模式）
         const resp = await this._sync();
 
-        // 读取芯片 ID
-        const chipId = await this._readRegister(0x40001000);
-        const detected = this._identifyChip(chipId);
-        this.log(`芯片已识别: ${detected}`, 'success');
+        this.log('同步成功', 'success');
         this.synced = true;
-        return detected;
+        return this.chipType;
     }
 
     async eraseFlash() {
@@ -257,71 +254,56 @@ class ESP32Flasher {
 
     /* ========================= 内部 – Bootloader 同步 ========================= */
 
-    async _resetIntoBootloader() {
-        // 先关闭，再以低波特率重新打开，以控制 DTR/RTS
+    async _drainInput() {
+        // 读取并丢弃串口中的残留数据
         try {
-            if (this.reader) { await this.reader.cancel(); await this.readableStreamClosed?.catch(()=>{}); this.reader = null; }
-            if (this.port?.readable) await this.port.close();
+            if (this.port?.readable) {
+                const reader = this.port.readable.getReader();
+                try {
+                    while (true) {
+                        const { value, done } = await Promise.race([
+                            reader.read(),
+                            this._sleepTimeout(100),
+                        ]);
+                        if (done || !value || value.byteLength === 0) break;
+                    }
+                } finally {
+                    reader.releaseLock();
+                }
+            }
         } catch (_) {}
-
-        await this._openPort(115200);
-
-        // ESP32-C3 / S3: DTR 控制 BOOT，RTS 控制 EN（低电平触发）
-        // 拉低 DTR(BOOT) → 拉低 RTS(EN) → 松开 RTS → 松开 DTR
-        await this.port.setSignals({ dataTerminalReady: false, requestToSend: false });
-        await this._sleep(50);
-        await this.port.setSignals({ dataTerminalReady: true,  requestToSend: false });  // DTR=low → BOOT=low
-        await this._sleep(50);
-        await this.port.setSignals({ dataTerminalReady: true,  requestToSend: true });   // RTS=low  → EN=low (reset)
-        await this._sleep(50);
-        await this.port.setSignals({ dataTerminalReady: false, requestToSend: true });   // EN 恢复
-        await this._sleep(50);
-        await this.port.setSignals({ dataTerminalReady: false, requestToSend: false });
-
-        // 等待 bootloader 启动
-        await this._sleep(200);
-
-        // 关闭 115200，以目标波特率重新打开
-        try { await this.reader.cancel(); await this.readableStreamClosed?.catch(()=>{}); this.reader = null; } catch (_) {}
-        try { if (this.port?.readable) await this.port.close(); } catch (_) {}
-
-        await this._openPort(this.baudRate);
-        await this._sleep(100);
     }
 
     async _sync() {
-        const syncData = new Uint8Array(36);
-        // 填充 0x55 同步字节
-        syncData.fill(0x07, 0, 1);   // 方向 + 命令标识
-        for (let i = 0; i < 36; i++) {
-            syncData[i] = 0x55;
-        }
-        syncData[0] = 0x08;   // direction
-        syncData[1] = 0x00;   // size low
-        syncData[2] = 0x00;   // size high
-        syncData[3] = 0x00;   // value
-        syncData[4] = 0x00;
-        syncData[5] = 0x00;
-        // checksum = 0x55
+        // 0x07 0x07 0x12 0x20 + 32 bytes of 0x55 = 36 bytes sync frame
+        const syncFrame = new Uint8Array(36);
+        syncFrame[0] = 0x07;
+        syncFrame[1] = 0x07;
+        syncFrame[2] = 0x12;
+        syncFrame[3] = 0x20;
+        for (let i = 4; i < 36; i++) syncFrame[i] = 0x55;
 
-        const pkt = this._buildCommand(this.CMD.SYNC, syncData);
-        await this._sendCommand(pkt);
+        // 尝试最多 20 次，每次间隔 200ms（给用户时间手动进下载模式）
+        const maxRetries = 20;
+        const syncCmd = this._buildCommand(this.CMD.SYNC, syncFrame);
 
-        // 读取 sync 响应
-        const maxRetries = 5;
         for (let attempt = 0; attempt < maxRetries; attempt++) {
+            if (attempt === 0) {
+                this.log('请确保设备已进入下载模式（按住 BOOT → 按 RESET → 松开 BOOT）', 'info');
+            }
+            if (attempt === 5) {
+                this.log('正在等待设备响应... 请确认已进入下载模式', 'warning');
+            }
+
             try {
-                const resp = await this._readResponse(300, 'sync');
+                await this._sendCommand(syncCmd);
+                const resp = await this._readResponse(500, 'sync');
                 return resp;
             } catch (_) {
-                // bootloader 可能还没启动，重试
-                if (attempt < maxRetries - 1) {
-                    await this._sleep(100);
-                    await this._sendCommand(pkt);
-                }
+                await this._sleep(200);
             }
         }
-        throw new Error('同步失败：无法与 Bootloader 通信');
+        throw new Error('同步失败：无法与 Bootloader 通信，请确认设备已进入下载模式');
     }
 
     async _readRegister(addr) {
@@ -471,27 +453,21 @@ class ESP32Flasher {
     async _rawRead(maxBytes) {
         if (!this.port?.readable) return null;
         try {
-            if (!this.reader) {
-                this._readerCancelled = false;
-                this.readableStreamClosed = this.port.readable.pipeTo(
-                    new WritableStream({ write: () => {} })
-                ).catch(() => {});
-                this.reader = this.port.readable.getReader();
-            }
-
-            const { value, done } = await Promise.race([
-                this.reader.read(),
-                this._sleepTimeout(50),
-            ]);
-
-            if (value && value.byteLength > 0) {
-                return value;
+            // 每次读取都获取新 reader 并立即释放，避免 reader 锁冲突
+            const reader = this.port.readable.getReader();
+            try {
+                const result = await Promise.race([
+                    reader.read(),
+                    this._sleepTimeout(80),
+                ]);
+                if (result && result.value && result.value.byteLength > 0) {
+                    return result.value;
+                }
+            } finally {
+                reader.releaseLock();
             }
         } catch (err) {
-            if (err.name === 'NetworkError' || this._readerCancelled) {
-                this.reader = null;
-                return null;
-            }
+            // stream locked or other error, ignore
         }
         return null;
     }
