@@ -697,6 +697,37 @@ body {
     background: rgba(239, 68, 68, 0.1);
 }
 
+/* ========== Firmware Files ========== */
+.firmware-files-section {
+    margin-bottom: 20px;
+}
+
+.file-loading {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+}
+
+.file-item.file-error {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.04);
+}
+
+.file-icon.error {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.file-addr-value {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    padding: 6px 10px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-xs);
+}
+
 /* ========== Config Section ========== */
 .config-section {
     margin-bottom: 20px;

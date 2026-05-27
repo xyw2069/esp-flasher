@@ -38,8 +38,6 @@ class ESPFlashApp {
         // Step 1 - 固件
         this.versionSelect   = document.getElementById('versionSelect');
         this.refreshVersions = document.getElementById('refreshVersions');
-        this.firmwareInput   = document.getElementById('firmwareFile');
-        this.uploadArea      = document.getElementById('uploadArea');
         this.fileList        = document.getElementById('fileList');
         this.baudRateSelect  = document.getElementById('baudRate');
         this.flashSizeSelect = document.getElementById('flashSize');
@@ -91,24 +89,6 @@ class ESPFlashApp {
 
         // 版本下拉
         this.versionSelect.addEventListener('change', () => this.onVersionChange());
-
-        // 文件上传
-        this.uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            this.uploadArea.classList.add('dragover');
-        });
-        this.uploadArea.addEventListener('dragleave', () => {
-            this.uploadArea.classList.remove('dragover');
-        });
-        this.uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            this.uploadArea.classList.remove('dragover');
-            this.handleFiles(e.dataTransfer.files);
-        });
-        this.firmwareInput.addEventListener('change', (e) => {
-            this.handleFiles(e.target.files);
-            e.target.value = '';
-        });
 
         // 步骤导航
         this.toStep2Btn.addEventListener('click', () => this.goToStep(2));
@@ -193,15 +173,61 @@ class ESPFlashApp {
         this.log(`已选择产品: ${product.name} (${CHIP_LABELS[product.chip]})`, 'info');
     }
 
-    onVersionChange() {
+    async onVersionChange() {
         const version = this.versionSelect.value;
         if (!this.selectedProduct || !version) return;
         this.infoFirmware.textContent = version;
         this.log(`固件版本: ${version}`, 'info');
-        // 清空自定义文件，因为要用产品预设的
+
+        // 从服务器加载固件
         this.firmwareFiles = [];
-        this.renderFileList();
-        this.updateStep1Button();
+        this.fileList.innerHTML = '<div class="file-loading">正在加载固件...</div>';
+        this.toStep2Btn.disabled = true;
+
+        try {
+            await this.loadFirmwareFromServer(this.selectedProduct, version);
+            this.renderFileList();
+            this.updateStep1Button();
+        } catch (err) {
+            this.fileList.innerHTML = '';
+            this.log(`固件加载失败: ${err.message}`, 'error');
+        }
+    }
+
+    async loadFirmwareFromServer(product, version) {
+        const basePath = `${product.firmwarePath}/${version}`;
+        this.log(`正在从服务器加载固件: ${basePath}`, 'info');
+
+        for (const entry of product.firmware) {
+            const url = `${basePath}/${entry.file}`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const buf = await resp.arrayBuffer();
+                const data = new Uint8Array(buf);
+
+                this.firmwareFiles.push({
+                    name: entry.file,
+                    data,
+                    address: entry.address,
+                    size: data.byteLength,
+                });
+                this.log(`  ${entry.file} (${this.formatSize(data.byteLength)}) -> 0x${entry.address.toString(16)}`, 'success');
+            } catch (err) {
+                this.log(`  ${entry.file} 加载失败: ${err.message}`, 'warning');
+                this.firmwareFiles.push({
+                    name: entry.file,
+                    data: null,
+                    address: entry.address,
+                    size: 0,
+                    error: true,
+                });
+            }
+        }
+
+        const loaded = this.firmwareFiles.filter(f => !f.error).length;
+        const total = this.firmwareFiles.length;
+        this.log(`固件加载完成: ${loaded}/${total} 个文件`, loaded === total ? 'success' : 'warning');
     }
 
     renderProductList() {
@@ -221,94 +247,30 @@ class ESPFlashApp {
         });
     }
 
-    /* ========================= 文件上传 ========================= */
-
-    handleFiles(files) {
-        for (const file of files) {
-            if (!file.name.toLowerCase().endsWith('.bin')) {
-                this.log(`跳过: ${file.name}（仅支持 .bin 文件）`, 'warning');
-                continue;
-            }
-            const exists = this.firmwareFiles.some(f => f.file.name === file.name);
-            if (exists) {
-                this.log(`已存在: ${file.name}`, 'warning');
-                continue;
-            }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const addr = this.guessAddress(file.name, this.firmwareFiles.length);
-                this.firmwareFiles.push({
-                    file,
-                    data: new Uint8Array(e.target.result),
-                    address: addr,
-                });
-                this.renderFileList();
-                this.updateStep1Button();
-                this.log(`已加载: ${file.name} (${this.formatSize(file.size)})  -> 0x${addr.toString(16)}`, 'success');
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    }
-
-    guessAddress(filename, index) {
-        const lower = filename.toLowerCase();
-        if (lower.includes('bootloader'))  return 0x0;
-        if (lower.includes('partition'))   return 0x8000;
-        if (lower.includes('ota_data') || lower.includes('ota-data')) return 0xd000;
-        if (lower.includes('app') || lower.includes('firmware'))      return 0x10000;
-        if (lower.includes('littlefs') || lower.includes('spiffs'))   return 0x210000;
-        // fallback
-        return index === 0 ? 0x0 : 0x10000;
-    }
-
     renderFileList() {
         this.fileList.innerHTML = '';
-        this.firmwareFiles.forEach((fw, idx) => {
+        this.firmwareFiles.forEach((fw) => {
             const el = document.createElement('div');
-            el.className = 'file-item';
+            el.className = `file-item${fw.error ? ' file-error' : ''}`;
             el.innerHTML = `
-                <div class="file-icon">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FB923C" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                    </svg>
+                <div class="file-icon${fw.error ? ' error' : ''}">
+                    ${fw.error
+                        ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+                        : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+                    }
                 </div>
                 <div class="file-info">
-                    <div class="file-name">${fw.file.name}</div>
+                    <div class="file-name">${fw.name}</div>
                     <div class="file-meta">
-                        <span>${this.formatSize(fw.file.size)}</span>
+                        <span>${fw.error ? '加载失败' : this.formatSize(fw.size)}</span>
                     </div>
                 </div>
                 <div class="file-address-row">
                     <label>地址</label>
-                    <input type="text" value="0x${fw.address.toString(16)}"
-                           data-idx="${idx}" class="file-addr-input">
+                    <span class="file-addr-value">0x${fw.address.toString(16).padStart(6, '0')}</span>
                 </div>
-                <button class="file-remove" data-idx="${idx}" title="移除">&times;</button>
             `;
             this.fileList.appendChild(el);
-        });
-
-        // 事件委托
-        this.fileList.querySelectorAll('.file-addr-input').forEach(input => {
-            input.addEventListener('change', (e) => {
-                const i = parseInt(e.target.dataset.idx, 10);
-                const val = parseInt(e.target.value.replace(/[^0-9a-fA-Fx]/g, ''), 16);
-                if (!isNaN(val)) {
-                    this.firmwareFiles[i].address = val;
-                    this.log(`文件 ${this.firmwareFiles[i].file.name} 地址更新为 0x${val.toString(16)}`, 'info');
-                }
-            });
-        });
-
-        this.fileList.querySelectorAll('.file-remove').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const i = parseInt(e.target.dataset.idx, 10);
-                const removed = this.firmwareFiles.splice(i, 1);
-                this.renderFileList();
-                this.updateStep1Button();
-                this.log(`已移除: ${removed[0].file.name}`, 'info');
-            });
         });
     }
 
@@ -461,7 +423,7 @@ class ESPFlashApp {
             this.sumFirmware.textContent = this.firmwareFiles.length + ' 个文件';
         }
 
-        const totalSize = this.firmwareFiles.reduce((s, f) => s + f.data.byteLength, 0);
+        const totalSize = this.firmwareFiles.reduce((s, f) => s + (f.data ? f.data.byteLength : 0), 0);
         this.sumSize.textContent = this.formatSize(totalSize);
 
         // 文件列表
@@ -469,10 +431,10 @@ class ESPFlashApp {
         this.firmwareFiles.forEach(fw => {
             const el = document.createElement('div');
             el.className = 'flash-file-entry';
-            el.dataset.name = fw.file.name;
+            el.dataset.name = fw.name;
             el.innerHTML = `
                 <span class="flash-file-status pending"></span>
-                <span class="flash-file-name">${fw.file.name}</span>
+                <span class="flash-file-name">${fw.name}</span>
                 <span class="flash-file-addr">0x${fw.address.toString(16).padStart(6,'0')}</span>
             `;
             this.flashFileList.appendChild(el);
@@ -512,15 +474,15 @@ class ESPFlashApp {
             for (let i = 0; i < this.firmwareFiles.length; i++) {
                 if (this.flasher.isAborted) break;
                 const fw = this.firmwareFiles[i];
-                this.markFileStatus(fw.file.name, 'flashing');
-                this.log(`烧录 [${i + 1}/${this.firmwareFiles.length}]: ${fw.file.name} -> 0x${fw.address.toString(16)}`, 'info');
+                this.markFileStatus(fw.name, 'flashing');
+                this.log(`烧录 [${i + 1}/${this.firmwareFiles.length}]: ${fw.name} -> 0x${fw.address.toString(16)}`, 'info');
 
-                await this.flasher.flashOneFile(fw.data, fw.address, fw.file.name,
+                await this.flasher.flashOneFile(fw.data, fw.address, fw.name,
                     (pct, stage) => this.updateProgress(pct, stage)
                 );
 
-                this.markFileStatus(fw.file.name, 'done');
-                this.log(`✓ ${fw.file.name} 完成`, 'success');
+                this.markFileStatus(fw.name, 'done');
+                this.log(`✓ ${fw.name} 完成`, 'success');
             }
 
             this.updateProgress(100, '完成');

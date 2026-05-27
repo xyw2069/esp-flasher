@@ -1,6 +1,7 @@
 /**
  * 产品配置数据库
  * 每个产品定义了芯片类型、烧录参数和默认固件
+ * 固件文件存放在 firmware/{firmwarePath}/{version}/ 目录下
  */
 
 const PRODUCT_DB = [
@@ -13,7 +14,7 @@ const PRODUCT_DB = [
         flashMode: 'dio',
         flashFreq: '40m',
         baudRate: 460800,
-        baudRateApp: 115200,
+        firmwarePath: 'firmware/basic-car',
         firmware: [
             { file: 'bootloader.bin', address: 0x0 },
             { file: 'partition-table.bin', address: 0x8000 },
@@ -33,7 +34,7 @@ const PRODUCT_DB = [
         flashMode: 'dio',
         flashFreq: '40m',
         baudRate: 460800,
-        baudRateApp: 115200,
+        firmwarePath: 'firmware/voice-car',
         firmware: [
             { file: 'bootloader.bin', address: 0x0 },
             { file: 'partition-table.bin', address: 0x8000 },
@@ -53,7 +54,7 @@ const PRODUCT_DB = [
         flashMode: 'dio',
         flashFreq: '80m',
         baudRate: 921600,
-        baudRateApp: 115200,
+        firmwarePath: 'firmware/ai-car',
         firmware: [
             { file: 'bootloader.bin', address: 0x0 },
             { file: 'partition-table.bin', address: 0x8000 },
@@ -73,7 +74,7 @@ const PRODUCT_DB = [
         flashMode: 'dio',
         flashFreq: '80m',
         baudRate: 921600,
-        baudRateApp: 115200,
+        firmwarePath: 'firmware/camera-car',
         firmware: [
             { file: 'bootloader.bin', address: 0x0 },
             { file: 'partition-table.bin', address: 0x8000 },
@@ -97,9 +98,9 @@ const CHIP_LABELS = {
 
 /** 从 URL hash 读取 product_id，例如 flash.html#product_id=1 */
 function parseProductIdFromURL() {
-    const hash = window.location.hash;          //  #product_id=1
+    const hash = window.location.hash;
     if (!hash) return null;
-    const params = new URLSearchParams(hash.substring(1));   // strip leading #
+    const params = new URLSearchParams(hash.substring(1));
     const id = parseInt(params.get('product_id'), 10);
     return Number.isNaN(id) ? null : id;
 }
