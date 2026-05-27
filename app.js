@@ -194,40 +194,41 @@ class ESPFlashApp {
         }
     }
 
-    async loadFirmwareFromServer(product, version) {
-        const basePath = `${product.firmwarePath}/${version}`;
-        this.log(`正在从服务器加载固件: ${basePath}`, 'info');
+    async loadFirmwareFromServer(product, versionTag) {
+        // 查找版本信息
+        const ver = product.versions.find(v => v.tag === versionTag);
+        if (!ver) throw new Error(`未找到版本 ${versionTag}`);
 
-        for (const entry of product.firmware) {
-            const url = `${basePath}/${entry.file}`;
-            try {
-                const resp = await fetch(url);
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const buf = await resp.arrayBuffer();
-                const data = new Uint8Array(buf);
+        // 固件文件在 firmware/{firmwarePath}/{filename}
+        const url = `${product.firmwarePath}/${ver.file}`;
+        this.log(`正在从服务器加载固件: ${url}`, 'info');
 
-                this.firmwareFiles.push({
-                    name: entry.file,
-                    data,
-                    address: entry.address,
-                    size: data.byteLength,
-                });
-                this.log(`  ${entry.file} (${this.formatSize(data.byteLength)}) -> 0x${entry.address.toString(16)}`, 'success');
-            } catch (err) {
-                this.log(`  ${entry.file} 加载失败: ${err.message}`, 'warning');
-                this.firmwareFiles.push({
-                    name: entry.file,
-                    data: null,
-                    address: entry.address,
-                    size: 0,
-                    error: true,
-                });
-            }
+        try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const buf = await resp.arrayBuffer();
+            const data = new Uint8Array(buf);
+
+            this.firmwareFiles.push({
+                name: ver.file,
+                data,
+                address: ver.address,
+                size: data.byteLength,
+            });
+            this.log(`  ${ver.file} (${this.formatSize(data.byteLength)}) -> 0x${ver.address.toString(16)}`, 'success');
+        } catch (err) {
+            this.log(`  ${ver.file} 加载失败: ${err.message}`, 'warning');
+            this.firmwareFiles.push({
+                name: ver.file,
+                data: null,
+                address: ver.address,
+                size: 0,
+                error: true,
+            });
         }
 
         const loaded = this.firmwareFiles.filter(f => !f.error).length;
-        const total = this.firmwareFiles.length;
-        this.log(`固件加载完成: ${loaded}/${total} 个文件`, loaded === total ? 'success' : 'warning');
+        this.log(`固件加载完成: ${loaded} 个文件`, loaded > 0 ? 'success' : 'error');
     }
 
     renderProductList() {
@@ -413,15 +414,7 @@ class ESPFlashApp {
 
         this.sumProduct.textContent = prod.name;
         this.sumChip.textContent    = CHIP_LABELS[prod.chip];
-
-        // 如果用户没有上传自定义文件，使用产品预设
-        if (this.firmwareFiles.length === 0 && prod.firmware && prod.firmware.length > 0) {
-            // 预设固件只用地址，文件需用户之前通过上传加载
-            // 此处只显示地址信息
-            this.sumFirmware.textContent = this.versionSelect.value || '-';
-        } else {
-            this.sumFirmware.textContent = this.firmwareFiles.length + ' 个文件';
-        }
+        this.sumFirmware.textContent = this.versionSelect.value || '-';
 
         const totalSize = this.firmwareFiles.reduce((s, f) => s + (f.data ? f.data.byteLength : 0), 0);
         this.sumSize.textContent = this.formatSize(totalSize);

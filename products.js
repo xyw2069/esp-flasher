@@ -1,7 +1,7 @@
 /**
  * 产品配置数据库
- * 每个产品定义了芯片类型、烧录参数和默认固件
  * 固件文件存放在 firmware/{firmwarePath}/{version}/ 目录下
+ * 每个版本可以有单个或多个 .bin 文件
  */
 
 const PRODUCT_DB = [
@@ -15,14 +15,11 @@ const PRODUCT_DB = [
         flashFreq: '40m',
         baudRate: 460800,
         firmwarePath: 'firmware/basic-car',
-        firmware: [
-            { file: 'bootloader.bin', address: 0x0 },
-            { file: 'partition-table.bin', address: 0x8000 },
-            { file: 'ota_data_initial.bin', address: 0xd000 },
-            { file: 'app.bin', address: 0x10000 },
-        ],
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true },
+            { tag: 'robot_z01y23', date: '2026-04-29', latest: true,  file: 'robot_z01y23.bin', address: 0x0 },
+            { tag: 'robot_z01y32', date: '2026-04-29', latest: false, file: 'robot_z01y32.bin', address: 0x0 },
+            { tag: 'robot_z10y23', date: '2026-04-29', latest: false, file: 'robot_z10y23.bin', address: 0x0 },
+            { tag: 'robot_z10y32', date: '2026-04-29', latest: false, file: 'robot_z10y32.bin', address: 0x0 },
         ],
     },
     {
@@ -35,14 +32,8 @@ const PRODUCT_DB = [
         flashFreq: '40m',
         baudRate: 460800,
         firmwarePath: 'firmware/voice-car',
-        firmware: [
-            { file: 'bootloader.bin', address: 0x0 },
-            { file: 'partition-table.bin', address: 0x8000 },
-            { file: 'ota_data_initial.bin', address: 0xd000 },
-            { file: 'app.bin', address: 0x10000 },
-        ],
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true },
+            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
         ],
     },
     {
@@ -55,14 +46,8 @@ const PRODUCT_DB = [
         flashFreq: '80m',
         baudRate: 921600,
         firmwarePath: 'firmware/ai-car',
-        firmware: [
-            { file: 'bootloader.bin', address: 0x0 },
-            { file: 'partition-table.bin', address: 0x8000 },
-            { file: 'ota_data_initial.bin', address: 0xd000 },
-            { file: 'app.bin', address: 0x10000 },
-        ],
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true },
+            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
         ],
     },
     {
@@ -75,14 +60,8 @@ const PRODUCT_DB = [
         flashFreq: '80m',
         baudRate: 921600,
         firmwarePath: 'firmware/camera-car',
-        firmware: [
-            { file: 'bootloader.bin', address: 0x0 },
-            { file: 'partition-table.bin', address: 0x8000 },
-            { file: 'ota_data_initial.bin', address: 0xd000 },
-            { file: 'app.bin', address: 0x10000 },
-        ],
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true },
+            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
         ],
     },
 ];
