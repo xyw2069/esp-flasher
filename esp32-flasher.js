@@ -59,6 +59,7 @@ class ESP32Flasher {
     }
 
     async disconnect() {
+        this._stopKeepAlive();
         this._readerCancelled = true;
         try {
             if (this.reader) {
@@ -92,6 +93,10 @@ class ESP32Flasher {
 
         this.log('同步成功', 'success');
         this.synced = true;
+
+        // 启动保活定时器，防止 bootloader 超时重启
+        this._startKeepAlive();
+
         return this.chipType;
     }
 
@@ -116,6 +121,7 @@ class ESP32Flasher {
      */
     async flashOneFile(data, address, name, onPct) {
         if (!this.port) throw new Error('串口未连接');
+        this._stopKeepAlive();
         this.isFlashing = true;
         this.isAborted  = false;
 
@@ -181,8 +187,31 @@ class ESP32Flasher {
         this.isFlashing = false;
     }
 
+    _startKeepAlive() {
+        this._stopKeepAlive();
+        this._keepAliveTimer = setInterval(async () => {
+            if (this.isFlashing) return;
+            try {
+                // 发送 READ_REG 读取芯片 ID 寄存器作为保活
+                const payload = new Uint8Array(16);
+                this._writeU32LE(payload, 0, 0x40001000);
+                const pkt = this._buildCommand(this.CMD.READ_REG, payload);
+                await this._sendCommand(pkt);
+                await this._readResponse(200, 'keepalive').catch(() => {});
+            } catch (_) {}
+        }, 1500);
+    }
+
+    _stopKeepAlive() {
+        if (this._keepAliveTimer) {
+            clearInterval(this._keepAliveTimer);
+            this._keepAliveTimer = null;
+        }
+    }
+
     abort() {
         this.isAborted = true;
+        this._stopKeepAlive();
         this.log('正在停止...', 'warning');
     }
 
