@@ -61,7 +61,7 @@ const PRODUCT_DB = [
         baudRate: 921600,
         firmwarePath: 'firmware/camera-car',
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
+            { tag: 'xiaozhi_car_cam', date: '2026-05-27', latest: true, file: 'xiaozhi_car_cam.bin', address: 0x0 },
         ],
     },
 ];
