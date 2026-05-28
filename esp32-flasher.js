@@ -30,36 +30,17 @@ class ESP32Flasher {
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
 
-        // 手动打开串口，避免自动复位
-        await port.open({
-            baudRate: 115200,
-            dataBits: 8,
-            stopBits: 1,
-            parity: 'none',
-            flowControl: 'none',
-        });
-
-        // 立即设置 DTR/RTS 防止复位
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
-
-        this.transport = new Transport(port, false);
-        this.transport.baudrate = 115200;
+        // 创建传输层，tracing=true 输出调试日志
+        this.transport = new Transport(port, true);
 
         this.esploader = new ESPLoader({
-            transport:   this.transport,
-            baudrate:    115200,
-            romBaudrate: 115200,
+            transport: this.transport,
+            baudrate:  115200,
         });
 
-        this.log('正在同步芯片...', 'info');
+        this.log('正在连接并识别芯片（会自动进入下载模式）...', 'info');
         try {
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('同步超时')), 15000)
-            );
-            const chipName = await Promise.race([
-                this.esploader.main('no_reset'),
-                timeoutPromise
-            ]);
+            const chipName = await this.esploader.main();
             this.chip = chipName;
             this.log(`芯片已识别: ${chipName}`, 'success');
         } catch (err) {
