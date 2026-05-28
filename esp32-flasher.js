@@ -29,21 +29,28 @@ class ESP32Flasher {
 
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
-        this.transport = new Transport(port, false);
+        this.transport = new Transport(port, true);  // 启用 tracing 调试
 
         this.esploader = new ESPLoader({
-            transport:    this.transport,
-            baudrate:     this.baudRate,
-            romBaudrate:  115200,
+            transport:     this.transport,
+            baudrate:      this.baudRate,
+            romBaudrate:   115200,
+            debugLogging:  true,
+            serialOptions: {
+                dataBits: 8,
+                stopBits: 1,
+                parity:   'none',
+                flowControl: 'none',
+            },
         });
 
-        this.log('正在同步并识别芯片（若卡住请按住 BOOT 按钮）...', 'info');
+        this.log('请先手动让设备进入下载模式（按住 BOOT 上电），然后等待同步...', 'info');
         try {
-            const chipName = await this.esploader.main('default_reset');
+            const chipName = await this.esploader.main('no_reset');
             this.chip = chipName;
             this.log(`芯片已识别: ${chipName}`, 'success');
         } catch (err) {
-            this.log('连接失败：请按住 BOOT 按钮后重新连接', 'error');
+            this.log('连接失败: ' + err.message, 'error');
             await this.disconnect();
             throw err;
         }
