@@ -29,26 +29,18 @@ class ESP32Flasher {
 
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
-        this.transport = new Transport(port, true);  // 启用 tracing 调试
+        this.transport = new Transport(port, false);
 
         this.esploader = new ESPLoader({
-            transport:     this.transport,
-            baudrate:      this.baudRate,
-            romBaudrate:   115200,
-            debugLogging:  true,
-            serialOptions: {
-                dataBits: 8,
-                stopBits: 1,
-                parity:   'none',
-                flowControl: 'none',
-            },
+            transport:   this.transport,
+            baudrate:    115200,   // 使用固定 115200，不切换高速
+            romBaudrate: 115200,
         });
 
-        this.log('请先手动让设备进入下载模式（按住 BOOT 上电），然后等待同步...', 'info');
+        this.log('正在同步芯片...', 'info');
         try {
-            // 添加 30 秒超时
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('连接超时（30秒），请确认设备已进入下载模式')), 30000)
+                setTimeout(() => reject(new Error('同步超时')), 15000)
             );
             const chipName = await Promise.race([
                 this.esploader.main('no_reset'),
