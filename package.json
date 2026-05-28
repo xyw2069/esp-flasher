@@ -1,0 +1,23 @@
+{
+  "name": "esp-flasher",
+  "version": "1.0.0",
+  "description": "基于 Web Serial API 的 ESP32 在线烧录工具，支持多产品配置和分步烧录。",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xyw2069/esp-flasher.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/xyw2069/esp-flasher/issues"
+  },
+  "homepage": "https://github.com/xyw2069/esp-flasher#readme",
+  "dependencies": {
+    "esptool-js": "^0.4.0"
+  }
+}

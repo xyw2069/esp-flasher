@@ -26,7 +26,7 @@ class ESP32Flasher {
         // 动态加载 esptool-js
         if (!this._esptoolLoaded) {
             this.log('正在加载 esptool-js...', 'info');
-            const module = await import('https://unpkg.com/esptool-js@0.4.0/bundled.js');
+            const module = await import('./esptool-bundle.js');
             window.ESPLoader = module.ESPLoader;
             window.Transport = module.Transport;
             this._esptoolLoaded = true;
