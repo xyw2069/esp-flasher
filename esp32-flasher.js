@@ -37,10 +37,16 @@ class ESP32Flasher {
             romBaudrate:  115200,
         });
 
-        this.log('正在同步并识别芯片...', 'info');
-        const chipName = await this.esploader.main('default_reset');
-        this.chip = chipName;
-        this.log(`芯片已识别: ${chipName}`, 'success');
+        this.log('正在同步并识别芯片（若卡住请按住 BOOT 按钮）...', 'info');
+        try {
+            const chipName = await this.esploader.main('default_reset');
+            this.chip = chipName;
+            this.log(`芯片已识别: ${chipName}`, 'success');
+        } catch (err) {
+            this.log('连接失败：请按住 BOOT 按钮后重新连接', 'error');
+            await this.disconnect();
+            throw err;
+        }
     }
 
     async disconnect() {
