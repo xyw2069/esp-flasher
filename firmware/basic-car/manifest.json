@@ -1,0 +1,12 @@
+{
+  "name": "基础款小车",
+  "version": "v1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "v1.0.0/robot_z01y23.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

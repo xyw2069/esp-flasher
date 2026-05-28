@@ -1,0 +1,12 @@
+{
+  "name": "小智摄像头小车",
+  "version": "v1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        { "path": "xiaozhi_car_cam.bin", "offset": 0 }
+      ]
+    }
+  ]
+}

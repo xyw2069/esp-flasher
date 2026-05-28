@@ -1,0 +1,12 @@
+{
+  "name": "语音款小车",
+  "version": "v1.0.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        { "path": "app.bin", "offset": 0 }
+      ]
+    }
+  ]
+}
