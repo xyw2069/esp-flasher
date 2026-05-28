@@ -33,7 +33,7 @@ const PRODUCT_DB = [
         baudRate: 460800,
         firmwarePath: 'firmware/voice-car',
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'app.bin', address: 0x0 },
+            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'voice_car.bin', address: 0x0 },
         ],
     },
     {
