@@ -94,9 +94,19 @@ class ESPFlashApp {
         // 串口 (不再需要，ESP Web Tools 自动处理)
         this.connectBtn.style.display = 'none';
 
-        // ESP Web Tools 事件监听
+        // ESP Web Tools 事件监听（延迟绑定，等待组件加载）
         this.installBtn = document.getElementById('installBtn');
-        this.installBtn.addEventListener('state-changed', (e) => this.onInstallStateChanged(e));
+        if (this.installBtn) {
+            this.installBtn.addEventListener('state-changed', (e) => this.onInstallStateChanged(e));
+        } else {
+            // 如果组件还没加载，等待一下再绑定
+            customElements.whenDefined('esp-web-install-button').then(() => {
+                this.installBtn = document.getElementById('installBtn');
+                if (this.installBtn) {
+                    this.installBtn.addEventListener('state-changed', (e) => this.onInstallStateChanged(e));
+                }
+            });
+        }
 
         // 日志
         this.clearLogBtn.addEventListener('click', () => this.clearLog());
