@@ -38,7 +38,7 @@ class ESP32Flasher {
         });
 
         this.log('正在同步并识别芯片...', 'info');
-        const chipName = await this.esploader.main();
+        const chipName = await this.esploader.main('no_reset');
         this.chip = chipName;
         this.log(`芯片已识别: ${chipName}`, 'success');
     }
