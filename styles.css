@@ -1306,3 +1306,86 @@ body {
         align-items: flex-start;
     }
 }
+
+/* ========== 驱动下载提示 ========== */
+.driver-notice {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+    border: 1px solid #C7D2FE;
+    border-radius: var(--radius);
+    margin-top: 20px;
+}
+
+.driver-notice-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.driver-notice-content strong {
+    display: block;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 4px;
+}
+
+.driver-notice-content p {
+    color: var(--text-secondary);
+    font-size: 13px;
+    margin: 0;
+}
+
+/* ========== 烧录选项 ========== */
+.flash-options {
+    padding: 16px 20px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+}
+
+.flash-options .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.flash-options .checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+    cursor: pointer;
+}
+
+/* ========== 烧录提示 ========== */
+.flash-tips {
+    padding: 16px 20px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+}
+
+.tip-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.tip-item + .tip-item {
+    border-top: 1px solid #FDE68A;
+    margin-top: 6px;
+    padding-top: 12px;
+}
+
+.tip-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}

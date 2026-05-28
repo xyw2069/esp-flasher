@@ -225,44 +225,32 @@
                         <div class="instruction-item">
                             <span class="instruction-num">1</span>
                             <div>
-                                <strong>将设备进入下载模式</strong>
-                                <p>按住 BOOT 键，按一下 EN/RESET 键，然后松开 BOOT 键</p>
+                                <strong>安装串口驱动</strong>
+                                <p>首次使用请先下载并安装对应的 USB 串口驱动程序</p>
                             </div>
                         </div>
                         <div class="instruction-item">
                             <span class="instruction-num">2</span>
                             <div>
-                                <strong>通过 USB 连接设备</strong>
-                                <p>使用 USB 数据线将 ESP32 开发板连接到电脑</p>
+                                <strong>连接设备到电脑</strong>
+                                <p>使用 USB 数据线将开发板连接到电脑的 USB 接口</p>
                             </div>
                         </div>
                         <div class="instruction-item">
                             <span class="instruction-num">3</span>
                             <div>
-                                <strong>点击连接并选择串口</strong>
-                                <p>在弹出的对话框中，选择对应的串口设备</p>
+                                <strong>点击下方按钮开始烧录</strong>
+                                <p>系统会自动弹出串口选择对话框，请选择对应的设备</p>
                             </div>
                         </div>
                     </div>
 
-                    <div class="serial-section">
-                        <div class="serial-controls">
-                            <button id="connectBtn" class="btn btn-primary btn-lg">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-                                    <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12z"/>
-                                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>
-                                </svg>
-                                连接设备
-                            </button>
-                            <select id="serialPort" class="select-input" disabled>
-                                <option value="">选择串口</option>
-                            </select>
-                        </div>
-                        <div class="connection-status" id="connectionStatus">
-                            <span class="status-dot disconnected"></span>
-                            <span class="status-text">未连接</span>
-                            <span class="status-detail" id="statusDetail"></span>
+                    <!-- 驱动下载提示 -->
+                    <div class="driver-notice">
+                        <div class="driver-notice-icon">📥</div>
+                        <div class="driver-notice-content">
+                            <strong>首次使用需要安装串口驱动</strong>
+                            <p>如果电脑无法识别设备，请先安装对应的驱动程序</p>
                         </div>
                     </div>
 
@@ -290,7 +278,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                         </svg>
-                        烧录进度
+                        开始烧录
                     </h2>
 
                     <!-- 烧录概要 -->
@@ -307,9 +295,26 @@
                             <span class="summary-label">固件</span>
                             <span class="summary-value" id="sumFirmware">-</span>
                         </div>
-                        <div class="summary-item">
-                            <span class="summary-label">总大小</span>
-                            <span class="summary-value" id="sumSize">-</span>
+                    </div>
+
+                    <!-- 烧录选项 -->
+                    <div class="flash-options">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="eraseBeforeFlash">
+                            <span class="checkmark"></span>
+                            <span>烧录前擦除 Flash（推荐首次烧录或升级大版本时使用）</span>
+                        </label>
+                    </div>
+
+                    <!-- 烧录提示 -->
+                    <div class="flash-tips">
+                        <div class="tip-item">
+                            <span class="tip-icon">💡</span>
+                            <span>点击下方按钮后，请在弹出的对话框中选择设备串口</span>
+                        </div>
+                        <div class="tip-item">
+                            <span class="tip-icon">⏳</span>
+                            <span>烧录过程中请勿断开设备连接，耐心等待完成</span>
                         </div>
                     </div>
 
@@ -326,9 +331,6 @@
                         <div class="progress-stage-text" id="progressStage">就绪</div>
                     </div>
 
-                    <!-- 文件烧录列表 -->
-                    <div class="flash-file-list" id="flashFileList"></div>
-
                     <div class="step-actions">
                         <button class="btn btn-ghost" id="backStep2">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -343,10 +345,10 @@
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                         <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
                                     </svg>
-                                    开始烧录
+                                    选择串口并开始烧录
                                 </button>
-                                <span slot="progress">烧录中...</span>
-                                <span slot="done">烧录完成！</span>
+                                <span slot="progress">正在烧录中，请勿断开连接...</span>
+                                <span slot="done">烧录完成！设备将自动重启</span>
                             </esp-web-install-button>
                         </div>
                     </div>

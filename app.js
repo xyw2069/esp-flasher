@@ -64,6 +64,7 @@ class ESPFlashApp {
         this.progressGlow    = document.getElementById('progressGlow');
         this.progressStage   = document.getElementById('progressStage');
         this.backStep2Btn    = document.getElementById('backStep2');
+        this.eraseCheckbox   = document.getElementById('eraseBeforeFlash');
 
         // 日志
         this.logArea         = document.getElementById('logArea');
@@ -246,37 +247,46 @@ class ESPFlashApp {
             case 'start':
                 this.setStatus('busy', '准备中...');
                 this.progressTitle.textContent = '正在连接设备...';
-                this.log('正在连接设备并进入下载模式...', 'info');
+                this.progressStage.textContent = '请在弹出的对话框中选择设备串口';
+                this.log('正在连接设备，请在弹出的对话框中选择串口...', 'info');
                 break;
 
             case 'preparing':
                 this.setStatus('busy', '准备中...');
-                this.progressTitle.textContent = '正在准备...';
+                this.progressTitle.textContent = '正在准备烧录...';
+                this.progressStage.textContent = '正在初始化设备和加载固件';
+                this.log('正在初始化设备并加载固件...', 'info');
                 break;
 
             case 'erasing':
                 this.setStatus('busy', '擦除中...');
                 this.progressTitle.textContent = '正在擦除 Flash...';
+                this.progressStage.textContent = '正在擦除，请勿断开设备连接';
+                this.log('正在擦除 Flash，请勿断开设备连接...', 'warning');
                 break;
 
             case 'writing':
                 this.setStatus('busy', '烧录中...');
                 this.progressTitle.textContent = '正在烧录固件...';
+                this.progressStage.textContent = '正在写入固件数据，请耐心等待';
+                this.log('正在写入固件数据，请耐心等待...', 'info');
                 break;
 
             case 'finished':
                 this.setStatus('ready', '完成');
-                this.progressTitle.textContent = '烧录完成';
+                this.progressTitle.textContent = '烧录完成！';
+                this.progressStage.textContent = '设备将自动重启';
                 this.updateProgress(100, '烧录完成');
-                this.toast('烧录完成！', 'success');
-                this.log('===== 烧录完成 =====', 'success');
+                this.toast('烧录完成！设备将自动重启', 'success');
+                this.log('===== 烧录完成！设备将自动重启 =====', 'success');
                 break;
 
             case 'error':
                 this.setStatus('error', '失败');
                 this.progressTitle.textContent = '烧录失败';
-                this.toast('烧录失败', 'error');
-                this.log('烧录失败', 'error');
+                this.progressStage.textContent = '请检查设备连接后重试';
+                this.toast('烧录失败，请检查设备连接后重试', 'error');
+                this.log('烧录失败，请检查设备连接后重试', 'error');
                 break;
         }
     }
