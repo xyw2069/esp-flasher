@@ -29,7 +29,7 @@ class ESP32Flasher {
 
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
-        this.transport = new Transport(port, true);
+        this.transport = new Transport(port, false);
 
         this.esploader = new ESPLoader({
             transport:    this.transport,
