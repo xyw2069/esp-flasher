@@ -46,7 +46,14 @@ class ESP32Flasher {
 
         this.log('请先手动让设备进入下载模式（按住 BOOT 上电），然后等待同步...', 'info');
         try {
-            const chipName = await this.esploader.main('no_reset');
+            // 添加 30 秒超时
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('连接超时（30秒），请确认设备已进入下载模式')), 30000)
+            );
+            const chipName = await Promise.race([
+                this.esploader.main('no_reset'),
+                timeoutPromise
+            ]);
             this.chip = chipName;
             this.log(`芯片已识别: ${chipName}`, 'success');
         } catch (err) {
