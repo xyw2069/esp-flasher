@@ -90,8 +90,9 @@ class ESPFlashApp {
         this.backStep1Btn.addEventListener('click', () => this.goToStep(1));
         this.backStep2Btn.addEventListener('click', () => this.goToStep(2));
 
-        // 串口 (不再需要，ESP Web Tools 自动处理)
-        this.connectBtn.style.display = 'none';
+        // 串口连接
+        this.connectBtn.addEventListener('click', () => this.requestSerialPort());
+        this.selectedPort = null;
 
         // ESP Web Tools 事件监听
         this.installBtn = document.getElementById('installBtn');
@@ -229,11 +230,43 @@ class ESPFlashApp {
         });
 
         if (step === 2) {
-            // 进入步骤 2 时直接跳到步骤 3（ESP Web Tools 自动处理连接）
-            this.goToStep(3);
+            this.resetConnectionStatus();
         }
 
         if (step === 3) this.prepareStep3();
+    }
+
+    /* ========================= 串口连接 ========================= */
+
+    async requestSerialPort() {
+        try {
+            this.log('正在请求串口...', 'info');
+            const port = await navigator.serial.requestPort();
+            this.selectedPort = port;
+            this.log('串口已选择', 'success');
+
+            // 更新连接状态 UI
+            this.connectionStatus.querySelector('.status-dot').className = 'status-dot connected';
+            this.connectionStatus.querySelector('.status-text').textContent = '已连接';
+            this.statusDetail.textContent = '串口已选择';
+
+            // 启用"下一步"按钮
+            this.toStep3Btn.disabled = false;
+        } catch (err) {
+            if (err.name === 'NotFoundError') {
+                this.log('用户取消了串口选择', 'info');
+            } else {
+                this.log(`串口连接失败: ${err.message}`, 'error');
+                this.toast('串口连接失败', 'error');
+            }
+        }
+    }
+
+    resetConnectionStatus() {
+        this.connectionStatus.querySelector('.status-dot').className = 'status-dot disconnected';
+        this.connectionStatus.querySelector('.status-text').textContent = '未连接';
+        this.statusDetail.textContent = '';
+        this.toStep3Btn.disabled = !this.selectedPort;
     }
 
     /* ========================= ESP Web Tools 事件处理 ========================= */
