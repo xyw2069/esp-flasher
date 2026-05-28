@@ -29,11 +29,25 @@ class ESP32Flasher {
 
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
+
+        // 手动打开串口，避免自动复位
+        await port.open({
+            baudRate: 115200,
+            dataBits: 8,
+            stopBits: 1,
+            parity: 'none',
+            flowControl: 'none',
+        });
+
+        // 立即设置 DTR/RTS 防止复位
+        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+
         this.transport = new Transport(port, false);
+        this.transport.baudrate = 115200;
 
         this.esploader = new ESPLoader({
             transport:   this.transport,
-            baudrate:    115200,   // 使用固定 115200，不切换高速
+            baudrate:    115200,
             romBaudrate: 115200,
         });
 
