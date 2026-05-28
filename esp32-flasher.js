@@ -1,6 +1,5 @@
 /**
  * ESP32 Flasher — 基于 esptool-js 官方库
- * https://github.com/nickytonline/esptool-js
  */
 
 class ESP32Flasher {
@@ -23,31 +22,25 @@ class ESP32Flasher {
     log(msg, type = 'info') { this.onLog(msg, type); }
 
     async connect() {
-        // 动态加载 esptool-js
-        if (!this._esptoolLoaded) {
-            this.log('正在加载 esptool-js...', 'info');
-            const module = await import('./esptool-bundle.js');
-            window.ESPLoader = module.ESPLoader;
-            window.Transport = module.Transport;
-            this._esptoolLoaded = true;
-        }
+        this.log('正在加载 esptool-js...', 'info');
+        const module = await import('./esptool-bundle.js');
+        const ESPLoader = module.ESPLoader;
+        const Transport = module.Transport;
 
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
         this.transport = new Transport(port, true);
 
-        this.log('正在初始化...', 'info');
         this.esploader = new ESPLoader({
             transport:    this.transport,
             baudrate:     this.baudRate,
             romBaudrate:  115200,
-            terminal:     { clean() {}, writeLine(msg) {}, write(msg) {} },
-            enableTracing: false,
         });
 
         this.log('正在同步并识别芯片...', 'info');
-        this.chip = await this.esploader.main_fn();
-        this.log(`芯片已识别: ${this.chip}`, 'success');
+        const chipName = await this.esploader.main();
+        this.chip = chipName;
+        this.log(`芯片已识别: ${chipName}`, 'success');
     }
 
     async disconnect() {
@@ -71,29 +64,26 @@ class ESP32Flasher {
 
         this.log(`开始烧录 ${files.length} 个文件...`, 'info');
 
-        // 监听写入进度
         const self = this;
-        const originalWriter = this.esploader.write_flash;
-
         const fileArray = files.map(f => ({
             data:    f.data,
             address: f.address,
         }));
 
         try {
-            await this.esploader.write_flash({
+            await this.esploader.writeFlash({
                 fileArray:  fileArray,
                 flashSize:  this.flashSize,
                 flashMode:  this.flashMode,
                 flashFreq:  this.flashFreq,
                 compress:   true,
                 reportProgress: (fileIndex, written, total) => {
-                    if (self.isAborted) throw new Error('中止');
+                    if (self.isAborted) return;
                     const file = files[fileIndex];
                     if (file) {
-                        const pct = Math.floor((written / total) * 100);
+                        const pct = total > 0 ? Math.floor((written / total) * 100) : 0;
                         self.onProgress(pct, `烧录 ${file.name}  (${written}/${total})`);
-                        if (written === total) {
+                        if (written === total && total > 0) {
                             self.log(`  ${file.name} 完成`, 'success');
                         }
                     }
@@ -104,7 +94,7 @@ class ESP32Flasher {
             this.log('全部烧录完成', 'success');
 
             // 重启设备
-            try { await this.esploader.hard_reset(); } catch (_) {}
+            try { await this.esploader.hardReset(); } catch (_) {}
 
         } catch (err) {
             if (this.isAborted) {
