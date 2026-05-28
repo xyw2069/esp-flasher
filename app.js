@@ -89,6 +89,7 @@ class ESPFlashApp {
         this.toStep2Btn.addEventListener('click', () => this.goToStep(2));
         this.backStep1Btn.addEventListener('click', () => this.goToStep(1));
         this.backStep2Btn.addEventListener('click', () => this.goToStep(2));
+        this.toStep3Btn.addEventListener('click', () => this.goToStep(3));
 
         // 串口连接
         this.connectBtn.addEventListener('click', () => this.requestSerialPort());
