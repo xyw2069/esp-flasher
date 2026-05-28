@@ -23,6 +23,15 @@ class ESP32Flasher {
     log(msg, type = 'info') { this.onLog(msg, type); }
 
     async connect() {
+        // 动态加载 esptool-js
+        if (!this._esptoolLoaded) {
+            this.log('正在加载 esptool-js...', 'info');
+            const module = await import('https://unpkg.com/esptool-js@0.4.0/bundled.js');
+            window.ESPLoader = module.ESPLoader;
+            window.Transport = module.Transport;
+            this._esptoolLoaded = true;
+        }
+
         this.log('正在请求串口...', 'info');
         const port = await navigator.serial.requestPort();
         this.transport = new Transport(port, true);
