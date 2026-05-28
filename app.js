@@ -270,6 +270,21 @@ class ESPFlashApp {
         this.toStep3Btn.disabled = !this.selectedPort;
     }
 
+    patchSerialRequestPort() {
+        if (!this.selectedPort) return;
+        const storedPort = this.selectedPort;
+        const original = navigator.serial.requestPort.bind(navigator.serial);
+        this._originalRequestPort = original;
+        navigator.serial.requestPort = async () => storedPort;
+    }
+
+    restoreSerialRequestPort() {
+        if (this._originalRequestPort) {
+            navigator.serial.requestPort = this._originalRequestPort;
+            this._originalRequestPort = null;
+        }
+    }
+
     /* ========================= ESP Web Tools 事件处理 ========================= */
 
     onInstallStateChanged(e) {
@@ -304,6 +319,7 @@ class ESPFlashApp {
                 this.updateProgress(100, '烧录完成');
                 this.toast('烧录完成！', 'success');
                 this.log('===== 烧录完成 =====', 'success');
+                this.restoreSerialRequestPort();
                 break;
 
             case 'error':
@@ -311,6 +327,7 @@ class ESPFlashApp {
                 this.progressTitle.textContent = '烧录失败';
                 this.toast('烧录失败', 'error');
                 this.log('烧录失败', 'error');
+                this.restoreSerialRequestPort();
                 break;
         }
     }
@@ -332,6 +349,9 @@ class ESPFlashApp {
 
         // 重置进度
         this.resetProgress();
+
+        // 复用已选端口，避免重复弹出串口选择
+        this.patchSerialRequestPort();
     }
 
     /* ========================= 进度管理 ========================= */
