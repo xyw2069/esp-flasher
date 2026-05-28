@@ -399,7 +399,11 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="products.js"></script>
-    <script src="https://unpkg.com/esptool-js@0.4.0/bundled.js"></script>
+    <script type="module">
+        import { ESPLoader, Transport } from 'https://unpkg.com/esptool-js@0.4.0/bundled.js';
+        window.ESPLoader = ESPLoader;
+        window.Transport = Transport;
+    </script>
     <script src="esp32-flasher.js"></script>
     <script src="app.js"></script>
 </body>
