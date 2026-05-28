@@ -36,6 +36,7 @@ class ESP32Flasher {
         this.esploader = new ESPLoader({
             transport: this.transport,
             baudrate:  115200,
+            terminal:  console,  // 输出到浏览器控制台
         });
 
         this.log('正在连接并识别芯片（会自动进入下载模式）...', 'info');
