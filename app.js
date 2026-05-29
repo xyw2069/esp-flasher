@@ -54,22 +54,11 @@ class ESPFlashApp {
         this.toStep3Btn       = document.getElementById('toStep3');
 
         // Step 3 - 烧录
-        this.sumProduct      = document.getElementById('sumProduct');
-        this.sumChip         = document.getElementById('sumChip');
-        this.sumFirmware     = document.getElementById('sumFirmware');
-        this.sumSize         = document.getElementById('sumSize');
         this.progressTitle   = document.getElementById('progressTitle');
         this.progressPercent = document.getElementById('progressPercent');
         this.progressFill    = document.getElementById('progressFill');
         this.progressGlow    = document.getElementById('progressGlow');
         this.progressStage   = document.getElementById('progressStage');
-        this.backStep2Btn    = document.getElementById('backStep2');
-
-        // 日志
-        this.logArea         = document.getElementById('logArea');
-        this.clearLogBtn     = document.getElementById('clearLog');
-        this.exportLogBtn    = document.getElementById('exportLog');
-        this.autoScrollCheck = document.getElementById('autoScroll');
 
         // 状态点
         this.browserDot      = document.getElementById('browserDot');
@@ -88,7 +77,6 @@ class ESPFlashApp {
         // 步骤导航
         this.toStep2Btn.addEventListener('click', () => this.goToStep(2));
         this.backStep1Btn.addEventListener('click', () => this.goToStep(1));
-        this.backStep2Btn.addEventListener('click', () => this.goToStep(2));
         this.toStep3Btn.addEventListener('click', () => this.goToStep(3));
 
         // 串口连接
@@ -98,10 +86,6 @@ class ESPFlashApp {
         // ESP Web Tools 事件监听
         this.installBtn = document.getElementById('installBtn');
         this.installBtn.addEventListener('state-changed', (e) => this.onInstallStateChanged(e));
-
-        // 日志
-        this.clearLogBtn.addEventListener('click', () => this.clearLog());
-        this.exportLogBtn.addEventListener('click', () => this.exportLog());
     }
 
     /* ========================= 产品系统 ========================= */
@@ -164,21 +148,18 @@ class ESPFlashApp {
         // 设置 ESP Web Tools 的 manifest URL
         const manifestUrl = `${product.firmwarePath}/manifest.json`;
         this.installBtn.setAttribute('manifest', manifestUrl);
-        this.log(`固件清单: ${manifestUrl}`, 'info');
 
         // 清空之前的自定义文件
         this.firmwareFiles = [];
         this.fileList.innerHTML = '';
 
         this.onVersionChange();
-        this.log(`已选择产品: ${product.name} (${CHIP_LABELS[product.chip]})`, 'info');
     }
 
     async onVersionChange() {
         const version = this.versionSelect.value;
         if (!this.selectedProduct || !version) return;
         this.infoFirmware.textContent = version;
-        this.log(`固件版本: ${version}`, 'info');
 
         // 更新 manifest URL（如果版本对应不同固件）
         // ESP Web Tools 会自动从 manifest 加载固件
@@ -241,10 +222,8 @@ class ESPFlashApp {
 
     async requestSerialPort() {
         try {
-            this.log('正在请求串口...', 'info');
             const port = await navigator.serial.requestPort();
             this.selectedPort = port;
-            this.log('串口已选择', 'success');
 
             // 更新连接状态 UI
             this.connectionStatus.querySelector('.status-dot').className = 'status-dot connected';
@@ -254,10 +233,7 @@ class ESPFlashApp {
             // 启用"下一步"按钮
             this.toStep3Btn.disabled = false;
         } catch (err) {
-            if (err.name === 'NotFoundError') {
-                this.log('用户取消了串口选择', 'info');
-            } else {
-                this.log(`串口连接失败: ${err.message}`, 'error');
+            if (err.name !== 'NotFoundError') {
                 this.toast('串口连接失败', 'error');
             }
         }
@@ -289,13 +265,11 @@ class ESPFlashApp {
 
     onInstallStateChanged(e) {
         const state = e.detail.state;
-        this.log(`烧录状态: ${state}`, 'info');
 
         switch (state) {
             case 'start':
                 this.setStatus('busy', '准备中...');
                 this.progressTitle.textContent = '正在连接设备...';
-                this.log('正在连接设备并进入下载模式...', 'info');
                 break;
 
             case 'preparing':
@@ -318,7 +292,6 @@ class ESPFlashApp {
                 this.progressTitle.textContent = '烧录完成';
                 this.updateProgress(100, '烧录完成');
                 this.toast('烧录完成！', 'success');
-                this.log('===== 烧录完成 =====', 'success');
                 this.restoreSerialRequestPort();
                 break;
 
@@ -326,7 +299,6 @@ class ESPFlashApp {
                 this.setStatus('error', '失败');
                 this.progressTitle.textContent = '烧录失败';
                 this.toast('烧录失败', 'error');
-                this.log('烧录失败', 'error');
                 this.restoreSerialRequestPort();
                 break;
         }
@@ -340,12 +312,7 @@ class ESPFlashApp {
     /* ========================= Step 3 准备 ========================= */
 
     prepareStep3() {
-        const prod = this.selectedProduct;
-        if (!prod) return;
-
-        this.sumProduct.textContent = prod.name;
-        this.sumChip.textContent    = CHIP_LABELS[prod.chip];
-        this.sumFirmware.textContent = this.versionSelect.value || '-';
+        if (!this.selectedProduct) return;
 
         // 重置进度
         this.resetProgress();
@@ -375,41 +342,6 @@ class ESPFlashApp {
         this.progressTitle.textContent   = '等待开始...';
     }
 
-    /* ========================= 日志 ========================= */
-
-    log(message, type = 'info') {
-        const line = document.createElement('div');
-        line.className = `log-line ${type}`;
-        line.innerHTML = `<span class="timestamp">${this.timestamp()}</span>${this.escHtml(message)}`;
-        this.logArea.appendChild(line);
-
-        // 保留最近 500 条
-        while (this.logArea.children.length > 500) {
-            this.logArea.removeChild(this.logArea.firstChild);
-        }
-
-        if (this.autoScrollCheck.checked) {
-            this.logArea.scrollTop = this.logArea.scrollHeight;
-        }
-    }
-
-    clearLog() {
-        this.logArea.innerHTML = '';
-        this.log('日志已清空', 'info');
-    }
-
-    exportLog() {
-        const lines = this.logArea.innerText;
-        const blob  = new Blob([lines], { type: 'text/plain;charset=utf-8' });
-        const url   = URL.createObjectURL(blob);
-        const a     = document.createElement('a');
-        a.href      = url;
-        a.download  = `flash-log-${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
-        a.click();
-        URL.revokeObjectURL(url);
-        this.toast('日志已导出', 'success');
-    }
-
     /* ========================= 通知 ========================= */
 
     toast(message, type = 'info') {
@@ -427,11 +359,9 @@ class ESPFlashApp {
         if ('serial' in navigator) {
             this.browserDot.className = 'check-dot supported';
             this.browserDot.title = 'Web Serial API 可用';
-            this.log('Web Serial API 可用', 'success');
         } else {
             this.browserDot.className = 'check-dot unsupported';
             this.browserDot.title = '浏览器不支持 Web Serial API，请使用 Chrome 89+ 或 Edge 89+';
-            this.log('浏览器不支持 Web Serial API，请使用 Chrome 89+ 或 Edge 89+', 'error');
             this.connectBtn.disabled = true;
         }
     }

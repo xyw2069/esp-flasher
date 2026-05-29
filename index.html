@@ -293,26 +293,6 @@
                         烧录进度
                     </h2>
 
-                    <!-- 烧录概要 -->
-                    <div class="flash-summary" id="flashSummary">
-                        <div class="summary-item">
-                            <span class="summary-label">产品</span>
-                            <span class="summary-value" id="sumProduct">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">芯片</span>
-                            <span class="summary-value" id="sumChip">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">固件</span>
-                            <span class="summary-value" id="sumFirmware">-</span>
-                        </div>
-                        <div class="summary-item">
-                            <span class="summary-label">总大小</span>
-                            <span class="summary-value" id="sumSize">-</span>
-                        </div>
-                    </div>
-
                     <!-- 进度条 -->
                     <div class="progress-section">
                         <div class="progress-header">
@@ -326,17 +306,7 @@
                         <div class="progress-stage-text" id="progressStage">就绪</div>
                     </div>
 
-                    <!-- 文件烧录列表 -->
-                    <div class="flash-file-list" id="flashFileList"></div>
-
                     <div class="step-actions">
-                        <button class="btn btn-ghost" id="backStep2">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="19" y1="12" x2="5" y2="12"/>
-                                <polyline points="12 19 5 12 12 5"/>
-                            </svg>
-                            上一步
-                        </button>
                         <div class="flash-actions">
                             <esp-web-install-button id="installBtn" manifest="">
                                 <button slot="activate" class="btn btn-flash btn-lg">
@@ -353,43 +323,6 @@
                 </section>
             </div>
 
-            <!-- 日志面板 -->
-            <section class="card log-panel">
-                <div class="log-header">
-                    <h2 class="card-title" style="margin-bottom:0;">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="4 17 10 11 4 5"/>
-                            <line x1="12" y1="19" x2="20" y2="19"/>
-                        </svg>
-                        烧录日志
-                    </h2>
-                    <div class="log-actions">
-                        <button id="clearLog" class="btn btn-ghost btn-sm">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="3 6 5 6 21 6"/>
-                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                            </svg>
-                            清空
-                        </button>
-                        <button id="exportLog" class="btn btn-ghost btn-sm">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            导出
-                        </button>
-                        <label class="checkbox-label" style="margin-left:8px;">
-                            <input type="checkbox" id="autoScroll" checked>
-                            <span class="checkmark"></span>
-                            <span>自动滚动</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="log-area" id="logArea">
-                    <div class="log-line system">[系统] Web Serial API 检测中...</div>
-                </div>
-            </section>
         </main>
     </div>
 
