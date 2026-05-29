@@ -16,10 +16,10 @@ const PRODUCT_DB = [
         baudRate: 460800,
         firmwarePath: 'firmware/basic-car',
         versions: [
-            { tag: 'robot_z01y23', date: '2026-04-29', latest: true,  file: 'robot_z01y23.bin', address: 0x0 },
-            { tag: 'robot_z01y32', date: '2026-04-29', latest: false, file: 'robot_z01y32.bin', address: 0x0 },
-            { tag: 'robot_z10y23', date: '2026-04-29', latest: false, file: 'robot_z10y23.bin', address: 0x0 },
-            { tag: 'robot_z10y32', date: '2026-04-29', latest: false, file: 'robot_z10y32.bin', address: 0x0 },
+            { tag: 'robot_z01y23', date: '2026-04-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
+            { tag: 'robot_z01y32', date: '2026-04-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
+            { tag: 'robot_z10y23', date: '2026-04-29', latest: false, file: 'basic_car1023.bin', address: 0x0 },
+            { tag: 'robot_z10y32', date: '2026-04-29', latest: false, file: 'basic_car1032.bin', address: 0x0 },
         ],
     },
     {
@@ -33,7 +33,10 @@ const PRODUCT_DB = [
         baudRate: 460800,
         firmwarePath: 'firmware/voice-car',
         versions: [
-            { tag: 'v1.0.0', date: '2026-05-27', latest: true, file: 'voice_car.bin', address: 0x0 },
+            { tag: 'voice_car0123', date: '2026-05-29', latest: true,  file: 'voice_car0123.bin', address: 0x0 },
+            { tag: 'voice_car0132', date: '2026-05-29', latest: false, file: 'voice_car0132.bin', address: 0x0 },
+            { tag: 'voice_car1023', date: '2026-05-29', latest: false, file: 'voice_car1023.bin', address: 0x0 },
+            { tag: 'voice_car1032', date: '2026-05-29', latest: false, file: 'voice_car1032.bin', address: 0x0 },
         ],
     },
     {
