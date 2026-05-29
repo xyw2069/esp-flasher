@@ -16,10 +16,10 @@ const PRODUCT_DB = [
         baudRate: 460800,
         firmwarePath: 'firmware/basic-car',
         versions: [
-            { tag: 'robot_z01y23', date: '2026-04-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
-            { tag: 'robot_z01y32', date: '2026-04-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
-            { tag: 'robot_z10y23', date: '2026-04-29', latest: false, file: 'basic_car1023.bin', address: 0x0 },
-            { tag: 'robot_z10y32', date: '2026-04-29', latest: false, file: 'basic_car1032.bin', address: 0x0 },
+            { tag: 'basic_car0123', date: '2026-04-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
+            { tag: 'basic_car0132', date: '2026-04-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
+            { tag: 'basic_car1023', date: '2026-04-29', latest: false, file: 'basic_car1023.bin', address: 0x0 },
+            { tag: 'basic_car1032', date: '2026-04-29', latest: false, file: 'basic_car1032.bin', address: 0x0 },
         ],
     },
     {
