@@ -1,0 +1,6 @@
+# Cloudflare Pages 路由规则
+# https://developers.cloudflare.com/pages/platform/redirects/
+
+# BLE 控制面板 — 简洁路径
+/ble    /BLE控制面板.html   200
+/ble/   /BLE控制面板.html   200
