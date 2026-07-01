@@ -15,6 +15,7 @@ const PRODUCT_DB = [
         flashFreq: '40m',
         baudRate: 460800,
         firmwarePath: 'firmware/basic-car',
+        note: '介绍：wifi，小程序控制小车',
         versions: [
             { tag: 'basic_car0123', date: '2026-04-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
             { tag: 'basic_car0132', date: '2026-04-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
@@ -32,6 +33,7 @@ const PRODUCT_DB = [
         flashFreq: '40m',
         baudRate: 460800,
         firmwarePath: 'firmware/voice-car',
+        note: '介绍：语音、wifi、小程序控制',
         versions: [
             { tag: 'voice_car0123', date: '2026-05-29', latest: true,  file: 'voice_car0123.bin', address: 0x0 },
             { tag: 'voice_car0132', date: '2026-05-29', latest: false, file: 'voice_car0132.bin', address: 0x0 },
@@ -49,6 +51,7 @@ const PRODUCT_DB = [
         flashFreq: '80m',
         baudRate: 921600,
         firmwarePath: 'firmware/ai-car',
+        note: '介绍：AI 中文对话，唤醒词：你好，小智',
         versions: [
             { tag: 'xiaozhi_car', date: '2026-05-27', latest: true, file: 'xiaozhi_car.bin', address: 0x0 },
         ],
@@ -63,7 +66,7 @@ const PRODUCT_DB = [
         flashFreq: '80m',
         baudRate: 921600,
         firmwarePath: 'firmware/ai-car-english',
-        note: '唤醒词：HI，JASON',
+        note: '介绍：AI 英文对话，唤醒词：HI,JASON',
         versions: [
             { tag: 'xiaozhi_car_english', date: '2026-07-01', latest: true, file: 'xiaozhi_car_english.bin', address: 0x0 },
         ],
