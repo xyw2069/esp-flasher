@@ -126,6 +126,10 @@ class ESPFlashApp {
         this.infoChip.textContent    = CHIP_LABELS[product.chip] || product.chip;
         this.infoFirmware.textContent = '请选择版本';
 
+        if (product.note) {
+            this.infoStatus.textContent = product.note;
+        }
+
         // 更新版本下拉
         this.versionSelect.innerHTML = '';
         this.versionSelect.disabled = false;
@@ -160,6 +164,10 @@ class ESPFlashApp {
         const version = this.versionSelect.value;
         if (!this.selectedProduct || !version) return;
         this.infoFirmware.textContent = version;
+
+        if (this.selectedProduct && this.selectedProduct.note) {
+            this.infoStatus.textContent = this.selectedProduct.note;
+        }
 
         // 更新 manifest URL（如果版本对应不同固件）
         // ESP Web Tools 会自动从 manifest 加载固件

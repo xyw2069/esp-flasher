@@ -55,16 +55,17 @@ const PRODUCT_DB = [
     },
     {
         id: 4,
-        name: '小智摄像头小车',
+        name: 'AI 英文款小车',
         chip: 'esp32s3',
-        icon: 'CAM',
+        icon: 'EN',
         flashSize: '16MB',
         flashMode: 'dio',
         flashFreq: '80m',
         baudRate: 921600,
-        firmwarePath: 'firmware/camera-car',
+        firmwarePath: 'firmware/ai-car-english',
+        note: '唤醒词：HI，JASON',
         versions: [
-            { tag: 'xiaozhi_car_cam', date: '2026-05-27', latest: true, file: 'xiaozhi_car_cam.bin', address: 0x0 },
+            { tag: 'xiaozhi_car_english', date: '2026-07-01', latest: true, file: 'xiaozhi_car_english.bin', address: 0x0 },
         ],
     },
 ];
