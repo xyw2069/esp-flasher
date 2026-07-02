@@ -17,10 +17,10 @@ const PRODUCT_DB = [
         firmwarePath: 'firmware/basic-car',
         note: 'wifi，小程序控制小车',
         versions: [
-            { tag: 'basic_car0123', date: '2026-04-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
-            { tag: 'basic_car0132', date: '2026-04-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
-            { tag: 'basic_car1023', date: '2026-04-29', latest: false, file: 'basic_car1023.bin', address: 0x0 },
-            { tag: 'basic_car1032', date: '2026-04-29', latest: false, file: 'basic_car1032.bin', address: 0x0 },
+            { tag: 'basic_car0123', date: '2026-05-29', latest: true,  file: 'basic_car0123.bin', address: 0x0 },
+            { tag: 'basic_car0132', date: '2026-05-29', latest: false, file: 'basic_car0132.bin', address: 0x0 },
+            { tag: 'basic_car1023', date: '2026-05-29', latest: false, file: 'basic_car1023.bin', address: 0x0 },
+            { tag: 'basic_car1032', date: '2026-05-29', latest: false, file: 'basic_car1032.bin', address: 0x0 },
         ],
     },
     {
