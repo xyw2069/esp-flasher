@@ -118,6 +118,14 @@ body {
     letter-spacing: -0.02em;
 }
 
+.logo-image {
+    width: 28px;
+    height: 28px;
+    display: block;
+    object-fit: contain;
+    flex: 0 0 auto;
+}
+
 .logo svg {
     color: var(--accent);
 }
