@@ -121,12 +121,6 @@ class ESPFlashApp {
         // 更新 URL hash
         window.location.hash = `product_id=${id}`;
 
-        // 更新信息栏
-        this.infoProduct.textContent = product.name;
-        this.infoChip.textContent    = CHIP_LABELS[product.chip] || product.chip;
-        this.infoFirmware.textContent = '请选择版本';
-        this.infoStatus.textContent = product.note || '就绪';
-
         // 更新版本下拉
         this.versionSelect.innerHTML = '';
         this.versionSelect.disabled = false;
@@ -142,9 +136,13 @@ class ESPFlashApp {
 
         if (!this.versionSelect.value && product.versions.length > 0) {
             this.versionSelect.value = product.versions[0].tag;
-            this.infoFirmware.textContent = product.versions[0].tag;
-            this.updateStep1Button();
         }
+
+        // 更新信息栏
+        this.infoProduct.textContent = product.name;
+        this.infoChip.textContent    = CHIP_LABELS[product.chip] || product.chip;
+        this.infoFirmware.textContent = this.versionSelect.value || '请选择版本';
+        this.infoStatus.textContent = product.note || '就绪';
 
         // 应用产品默认配置
         this.baudRateSelect.value  = String(product.baudRate);
