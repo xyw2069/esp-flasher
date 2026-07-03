@@ -142,6 +142,8 @@ class ESPFlashApp {
 
         if (!this.versionSelect.value && product.versions.length > 0) {
             this.versionSelect.value = product.versions[0].tag;
+            this.infoFirmware.textContent = product.versions[0].tag;
+            this.updateStep1Button();
         }
 
         // 应用产品默认配置
