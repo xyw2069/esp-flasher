@@ -119,8 +119,8 @@ body {
 }
 
 .logo-image {
-    width: 28px;
-    height: 28px;
+    width: 165px;
+    height: 60px;
     display: block;
     object-fit: contain;
     flex: 0 0 auto;
