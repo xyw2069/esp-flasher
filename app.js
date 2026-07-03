@@ -138,7 +138,6 @@ class ESPFlashApp {
             this.versionSelect.value = product.versions[0].tag;
         }
 
-        // 更新信息栏
         this.infoProduct.textContent = product.name;
         this.infoChip.textContent    = CHIP_LABELS[product.chip] || product.chip;
         this.infoFirmware.textContent = this.versionSelect.value || '请选择版本';
@@ -158,8 +157,7 @@ class ESPFlashApp {
         this.firmwareFiles = [];
         this.fileList.innerHTML = '';
 
-        this.onVersionChange();
-        this.updateStep1Button();
+        this.toStep2Btn.disabled = !(this.selectedProduct && this.versionSelect.value);
     }
 
     async onVersionChange() {
@@ -167,10 +165,6 @@ class ESPFlashApp {
         if (!this.selectedProduct || !version) return;
         this.infoFirmware.textContent = version;
         this.infoStatus.textContent = this.selectedProduct.note || '就绪';
-
-        // 更新 manifest URL（如果版本对应不同固件）
-        // ESP Web Tools 会自动从 manifest 加载固件
-        this.toStep2Btn.disabled = false;
     }
 
     renderProductList() {
