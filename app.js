@@ -140,6 +140,10 @@ class ESPFlashApp {
             this.versionSelect.appendChild(opt);
         });
 
+        if (!this.versionSelect.value && product.versions.length > 0) {
+            this.versionSelect.value = product.versions[0].tag;
+        }
+
         // 应用产品默认配置
         this.baudRateSelect.value  = String(product.baudRate);
         this.flashSizeSelect.value = product.flashSize;
