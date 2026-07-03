@@ -157,7 +157,7 @@ class ESPFlashApp {
         this.firmwareFiles = [];
         this.fileList.innerHTML = '';
 
-        this.toStep2Btn.disabled = !(this.selectedProduct && this.versionSelect.value);
+        this.toStep2Btn.disabled = false;
     }
 
     async onVersionChange() {
