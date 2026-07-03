@@ -159,6 +159,7 @@ class ESPFlashApp {
         this.fileList.innerHTML = '';
 
         this.onVersionChange();
+        this.updateStep1Button();
     }
 
     async onVersionChange() {
