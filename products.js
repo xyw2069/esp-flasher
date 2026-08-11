@@ -68,7 +68,7 @@ const PRODUCT_DB = [
         firmwarePath: 'firmware/camera-car',
         note: 'AI 对话摄像头监控小车',
         versions: [
-            { tag: 'xiaozhi_car_cam', date: '2026-07-02', latest: true, file: 'xiaozhi_car_cam.bin', address: 0x0 },
+            { tag: 'xiaozhi_car_cam', date: '2026-08-11', latest: true, file: 'xiaozhi_car_cam.bin', address: 0x0 },
         ],
     },
     {
