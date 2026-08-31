@@ -9,6 +9,7 @@ class ESP32Flasher {
         this.flashSize  = options.flashSize || '4MB';
         this.flashMode  = options.flashMode || 'dio';
         this.flashFreq  = options.flashFreq || '40m';
+        this.eraseAll   = options.eraseAll || false;
         this.onLog      = options.onLog     || (() => {});
         this.onProgress = options.onProgress || (() => {});
 
@@ -21,22 +22,29 @@ class ESP32Flasher {
 
     log(msg, type = 'info') { this.onLog(msg, type); }
 
-    async connect() {
+    async connect(port) {
         this.log('正在加载 esptool-js...', 'info');
         const module = await import('./esptool-bundle.js');
         const ESPLoader = module.ESPLoader;
         const Transport = module.Transport;
 
-        this.log('正在请求串口...', 'info');
-        const port = await navigator.serial.requestPort();
+        if (!port) {
+            this.log('正在请求串口...', 'info');
+            port = await navigator.serial.requestPort();
+        }
 
-        // 创建传输层，tracing=true 输出调试日志
-        this.transport = new Transport(port, true);
+        // 关闭逐包追踪，避免大量控制台输出拖慢高波特率烧录。
+        this.transport = new Transport(port, false);
 
         this.esploader = new ESPLoader({
             transport: this.transport,
-            baudrate:  115200,
-            terminal:  console,  // 输出到浏览器控制台
+            // 先以 ROM 固定速率同步，再由 esptool-js 切换到所选烧录速率。
+            baudrate:  this.baudRate,
+            terminal: {
+                clean: () => {},
+                writeLine: (message) => this.log(message),
+                write: (message) => this.log(message),
+            },
         });
 
         this.log('正在连接并识别芯片（会自动进入下载模式）...', 'info');
@@ -63,7 +71,7 @@ class ESP32Flasher {
     /**
      * 烧录固件
      * @param {{ name: string, address: number, data: string }[]} files
-     *   data 是 base64 编码的固件内容
+     *   data 是二进制字符串格式的固件内容
      */
     async flash(files) {
         if (!this.esploader) throw new Error('设备未连接');
@@ -84,6 +92,7 @@ class ESP32Flasher {
                 flashSize:  this.flashSize,
                 flashMode:  this.flashMode,
                 flashFreq:  this.flashFreq,
+                eraseAll:   this.eraseAll,
                 compress:   true,
                 reportProgress: (fileIndex, written, total) => {
                     if (self.isAborted) return;

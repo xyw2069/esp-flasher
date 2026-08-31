@@ -295,16 +295,12 @@
 
                     <div class="step-actions">
                         <div class="flash-actions">
-                            <esp-web-install-button id="installBtn" manifest="">
-                                <button slot="activate" class="btn btn-flash btn-lg">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                                    </svg>
-                                    开始烧录
-                                </button>
-                                <span slot="progress">烧录中...</span>
-                                <span slot="done">烧录完成！</span>
-                            </esp-web-install-button>
+                            <button id="flashBtn" class="btn btn-flash btn-lg">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                                开始烧录
+                            </button>
                         </div>
                     </div>
                 </section>
@@ -317,7 +313,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <script src="products.js"></script>
+    <script src="esp32-flasher.js"></script>
     <script src="app.js"></script>
-    <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
 </body>
 </html>

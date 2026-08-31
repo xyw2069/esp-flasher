@@ -6,7 +6,7 @@ class ESPFlashApp {
     constructor() {
         this.currentStep   = 1;
         this.selectedProduct = null;
-        this.installBtn    = null;
+        this.flasher       = null;
 
         this.initElements();
         this.bindEvents();
@@ -59,6 +59,7 @@ class ESPFlashApp {
         this.progressFill    = document.getElementById('progressFill');
         this.progressGlow    = document.getElementById('progressGlow');
         this.progressStage   = document.getElementById('progressStage');
+        this.flashBtn        = document.getElementById('flashBtn');
 
         // 状态点
         this.browserDot      = document.getElementById('browserDot');
@@ -83,9 +84,7 @@ class ESPFlashApp {
         this.connectBtn.addEventListener('click', () => this.requestSerialPort());
         this.selectedPort = null;
 
-        // ESP Web Tools 事件监听
-        this.installBtn = document.getElementById('installBtn');
-        this.installBtn.addEventListener('state-changed', (e) => this.onInstallStateChanged(e));
+        this.flashBtn.addEventListener('click', () => this.startFlashing());
     }
 
     /* ========================= 产品系统 ========================= */
@@ -149,13 +148,9 @@ class ESPFlashApp {
         this.flashModeSelect.value = product.flashMode;
         this.flashFreqSelect.value = product.flashFreq || '40m';
 
-        // 设置 ESP Web Tools 的 manifest URL
-        const manifestUrl = `${product.firmwarePath}/manifest.json`;
-        this.installBtn.setAttribute('manifest', manifestUrl);
-
         // 清空之前的自定义文件
         this.firmwareFiles = [];
-        this.fileList.innerHTML = '';
+        if (this.fileList) this.fileList.innerHTML = '';
 
         this.toStep2Btn.disabled = false;
     }
@@ -186,7 +181,9 @@ class ESPFlashApp {
 
     renderFileList() {
         // ESP Web Tools 自动处理固件文件，不需要手动渲染
-        this.fileList.innerHTML = '<div class="file-loading">固件将由 ESP Web Tools 自动加载</div>';
+        if (this.fileList) {
+            this.fileList.innerHTML = '<div class="file-loading">固件将由烧录器自动加载</div>';
+        }
     }
 
     updateStep1Button() {
@@ -233,6 +230,7 @@ class ESPFlashApp {
 
             // 启用"下一步"按钮
             this.toStep3Btn.disabled = false;
+            this.goToStep(3);
         } catch (err) {
             if (err.name !== 'NotFoundError') {
                 this.toast('串口连接失败', 'error');
@@ -245,64 +243,6 @@ class ESPFlashApp {
         this.connectionStatus.querySelector('.status-text').textContent = '未连接';
         this.statusDetail.textContent = '';
         this.toStep3Btn.disabled = !this.selectedPort;
-    }
-
-    patchSerialRequestPort() {
-        if (!this.selectedPort) return;
-        const storedPort = this.selectedPort;
-        const original = navigator.serial.requestPort.bind(navigator.serial);
-        this._originalRequestPort = original;
-        navigator.serial.requestPort = async () => storedPort;
-    }
-
-    restoreSerialRequestPort() {
-        if (this._originalRequestPort) {
-            navigator.serial.requestPort = this._originalRequestPort;
-            this._originalRequestPort = null;
-        }
-    }
-
-    /* ========================= ESP Web Tools 事件处理 ========================= */
-
-    onInstallStateChanged(e) {
-        const state = e.detail.state;
-
-        switch (state) {
-            case 'start':
-                this.setStatus('busy', '准备中...');
-                this.progressTitle.textContent = '正在连接设备...';
-                break;
-
-            case 'preparing':
-                this.setStatus('busy', '准备中...');
-                this.progressTitle.textContent = '正在准备...';
-                break;
-
-            case 'erasing':
-                this.setStatus('busy', '擦除中...');
-                this.progressTitle.textContent = '正在擦除 Flash...';
-                break;
-
-            case 'writing':
-                this.setStatus('busy', '烧录中...');
-                this.progressTitle.textContent = '正在烧录固件...';
-                break;
-
-            case 'finished':
-                this.setStatus('ready', '完成');
-                this.progressTitle.textContent = '烧录完成';
-                this.updateProgress(100, '烧录完成');
-                this.toast('烧录完成！', 'success');
-                this.restoreSerialRequestPort();
-                break;
-
-            case 'error':
-                this.setStatus('error', '失败');
-                this.progressTitle.textContent = '烧录失败';
-                this.toast('烧录失败', 'error');
-                this.restoreSerialRequestPort();
-                break;
-        }
     }
 
     setStatus(level, text) {
@@ -318,8 +258,77 @@ class ESPFlashApp {
         // 重置进度
         this.resetProgress();
 
-        // 复用已选端口，避免重复弹出串口选择
-        this.patchSerialRequestPort();
+    }
+
+    async startFlashing() {
+        if (!this.selectedProduct || !this.selectedPort) {
+            this.toast('请先选择产品并连接设备', 'error');
+            return;
+        }
+
+        const version = this.selectedProduct.versions.find(
+            item => item.tag === this.versionSelect.value
+        );
+        if (!version) {
+            this.toast('请选择有效的固件版本', 'error');
+            return;
+        }
+
+        this.flashBtn.disabled = true;
+        this.setStatus('busy', '准备烧录...');
+        this.progressTitle.textContent = '正在加载固件...';
+
+        try {
+            const firmware = await this.loadFirmware(version);
+            this.flasher = new ESP32Flasher({
+                baudRate: parseInt(this.baudRateSelect.value, 10),
+                flashSize: this.flashSizeSelect.value,
+                flashMode: this.flashModeSelect.value,
+                flashFreq: this.flashFreqSelect.value,
+                eraseAll: this.eraseCheckbox.checked,
+                onProgress: (percent, stage) => {
+                    this.progressTitle.textContent = '正在烧录固件...';
+                    this.updateProgress(percent, stage);
+                },
+            });
+
+            this.progressTitle.textContent = '正在连接设备...';
+            await this.flasher.connect(this.selectedPort);
+
+            if (this.eraseCheckbox.checked) {
+                this.progressTitle.textContent = '正在擦除 Flash...';
+            }
+            await this.flasher.flash([firmware]);
+
+            this.setStatus('ready', '完成');
+            this.progressTitle.textContent = '烧录完成';
+            this.updateProgress(100, '烧录完成');
+            this.toast('烧录完成！', 'success');
+        } catch (err) {
+            console.error(err);
+            this.setStatus('error', '失败');
+            this.progressTitle.textContent = '烧录失败';
+            this.progressStage.textContent = err.message || '发生未知错误';
+            this.toast(`烧录失败：${err.message || '未知错误'}`, 'error');
+        } finally {
+            if (this.flasher) await this.flasher.disconnect();
+            this.flasher = null;
+            this.flashBtn.disabled = false;
+        }
+    }
+
+    async loadFirmware(version) {
+        const url = `${this.selectedProduct.firmwarePath}/${version.file}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`固件加载失败 (${response.status})`);
+
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const chunkSize = 0x8000;
+        let data = '';
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+            data += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+        }
+        return { name: version.file, address: version.address, data };
     }
 
     /* ========================= 进度管理 ========================= */
