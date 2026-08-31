@@ -84,7 +84,10 @@ class ESPFlashApp {
         this.connectBtn.addEventListener('click', () => this.requestSerialPort());
         this.selectedPort = null;
 
-        this.flashBtn.addEventListener('click', () => this.startFlashing());
+        // 旧版 HTML 可能被 CDN 短暂缓存，避免缺少新按钮时阻断产品列表渲染。
+        if (this.flashBtn) {
+            this.flashBtn.addEventListener('click', () => this.startFlashing());
+        }
     }
 
     /* ========================= 产品系统 ========================= */
