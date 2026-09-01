@@ -41,35 +41,43 @@ class ESP32Flasher {
 
         const baudRates = [this.baudRate, 460800, 115200]
             .filter((rate, index, rates) => rates.indexOf(rate) === index);
+        // 页面要求用户手动进入下载模式，因此先保持当前模式读取 Bootloader；
+        // 对支持 DTR/RTS 自动复位的开发板，再回退到自动复位连接。
+        const resetModes = ['no_reset', 'default_reset'];
         let lastError;
 
-        for (const baudRate of baudRates) {
-            try {
-                // 关闭逐包追踪，并增大串口缓冲，减少高速传输丢包。
-                this.transport = new Transport(port, false);
-                this.esploader = new ESPLoader({
-                    transport: this.transport,
-                    // ROM 先以 115200 同步，再切换到目标速率。
-                    baudrate: baudRate,
-                    serialOptions: { bufferSize: 65536 },
-                    terminal: {
-                        clean: () => {},
-                        writeLine: (message) => this.log(message),
-                        write: (message) => this.log(message),
-                    },
-                });
+        for (const resetMode of resetModes) {
+            for (const baudRate of baudRates) {
+                try {
+                    // 关闭逐包追踪，并增大串口缓冲，减少高速传输丢包。
+                    this.transport = new Transport(port, false);
+                    this.esploader = new ESPLoader({
+                        transport: this.transport,
+                        // ROM 先以 115200 同步，再切换到目标速率。
+                        baudrate: baudRate,
+                        serialOptions: { bufferSize: 65536 },
+                        terminal: {
+                            clean: () => {},
+                            writeLine: (message) => this.log(message),
+                            write: (message) => this.log(message),
+                        },
+                    });
 
-                this.log(`正在连接设备（烧录速率 ${baudRate}）...`, 'info');
-                const chipName = await this.esploader.main();
-                this.chip = chipName;
-                this.baudRate = baudRate;
-                this.log(`芯片已识别: ${chipName}，速率 ${baudRate}`, 'success');
-                return;
-            } catch (err) {
-                lastError = err;
-                await this.disconnect();
-                if (baudRate !== baudRates[baudRates.length - 1]) {
-                    this.log(`${baudRate} 连接超时，尝试降低速率...`, 'warning');
+                    const modeLabel = resetMode === 'no_reset' ? '保持下载模式' : '自动复位';
+                    this.log(`正在连接设备（${modeLabel}，速率 ${baudRate}）...`, 'info');
+                    const chipName = await this.esploader.main(resetMode);
+                    this.chip = chipName;
+                    this.baudRate = baudRate;
+                    this.log(`芯片已识别: ${chipName}，速率 ${baudRate}`, 'success');
+                    return;
+                } catch (err) {
+                    lastError = err;
+                    await this.disconnect();
+                    if (baudRate !== baudRates[baudRates.length - 1]) {
+                        this.log(`${baudRate} 连接超时，尝试降低速率...`, 'warning');
+                    } else if (resetMode === resetModes[0]) {
+                        this.log('保持下载模式连接失败，尝试自动复位...', 'warning');
+                    }
                 }
             }
         }
