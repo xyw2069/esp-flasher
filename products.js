@@ -13,7 +13,7 @@ const PRODUCT_DB = [
         flashSize: '4MB',
         flashMode: 'dio',
         flashFreq: '40m',
-        baudRate: 460800,
+        baudRate: 921600,
         firmwarePath: 'firmware/basic-car',
         note: 'wifi，小程序控制小车',
         versions: [
@@ -31,7 +31,7 @@ const PRODUCT_DB = [
         flashSize: '4MB',
         flashMode: 'dio',
         flashFreq: '40m',
-        baudRate: 460800,
+        baudRate: 921600,
         firmwarePath: 'firmware/voice-car',
         note: '语音、wifi、小程序控制小车',
         versions: [
@@ -49,7 +49,7 @@ const PRODUCT_DB = [
         flashSize: '16MB',
         flashMode: 'dio',
         flashFreq: '80m',
-        baudRate: 460800,
+        baudRate: 921600,
         firmwarePath: 'firmware/ai-car',
         note: 'AI 中文对话，唤醒词：你好，小智',
         versions: [
@@ -64,7 +64,7 @@ const PRODUCT_DB = [
         flashSize: '16MB',
         flashMode: 'dio',
         flashFreq: '80m',
-        baudRate: 460800,
+        baudRate: 921600,
         firmwarePath: 'firmware/camera-car',
         note: 'AI 对话摄像头监控小车',
         versions: [
@@ -79,7 +79,7 @@ const PRODUCT_DB = [
         flashSize: '16MB',
         flashMode: 'dio',
         flashFreq: '80m',
-        baudRate: 460800,
+        baudRate: 921600,
         firmwarePath: 'firmware/ai-car-english',
         note: 'AI 英文对话，唤醒词：HI,JASON',
         versions: [

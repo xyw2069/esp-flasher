@@ -120,13 +120,6 @@
                             <select id="versionSelect" class="select-input" disabled>
                                 <option value="">请先选择产品</option>
                             </select>
-                            <button class="btn btn-outline btn-sm" id="refreshVersions" disabled>
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <polyline points="23 4 23 10 17 10"/>
-                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                                </svg>
-                                刷新
-                            </button>
                         </div>
                     </div>
 
@@ -137,8 +130,8 @@
                             <div class="config-item">
                                 <label>波特率</label>
                                 <select id="baudRate" class="select-input">
-                                    <option value="921600">921600</option>
-                                    <option value="460800" selected>460800</option>
+                                    <option value="921600" selected>921600</option>
+                                    <option value="460800">460800</option>
                                     <option value="230400">230400</option>
                                     <option value="115200">115200</option>
                                 </select>
@@ -325,9 +318,9 @@
     <!-- Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="products.js?v=20260910"></script>
-    <script src="buffer-polyfill.js?v=20260910"></script>
-    <script src="esp32-flasher.js?v=20260910"></script>
-    <script src="app.js?v=20260910"></script>
+    <script src="products.js?v=20260912"></script>
+    <script src="buffer-polyfill.js?v=20260912"></script>
+    <script src="esp32-flasher.js?v=20260912"></script>
+    <script src="app.js?v=20260912"></script>
 </body>
 </html>
