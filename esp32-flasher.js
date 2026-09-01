@@ -35,6 +35,23 @@ class ESP32Flasher {
         const ESPLoader = module.ESPLoader;
         const Transport = module.Transport;
 
+        // esptool-js 0.4 can leave the Web Serial writer locked when a write
+        // rejects (for example on a timeout). That prevents the fallback retry
+        // from reopening the same port. Always release the writer in finally.
+        if (!Transport.prototype.__espFlasherSafeWrite) {
+            Transport.prototype.write = async function (data) {
+                const outData = this.slipWriter(data);
+                if (!this.device.writable) return;
+                const writer = this.device.writable.getWriter();
+                try {
+                    await writer.write(outData);
+                } finally {
+                    writer.releaseLock();
+                }
+            };
+            Transport.prototype.__espFlasherSafeWrite = true;
+        }
+
         if (!port) {
             this.log('正在请求串口...', 'info');
             port = await navigator.serial.requestPort();
