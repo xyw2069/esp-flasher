@@ -65,8 +65,14 @@ class ESP32Flasher {
                         },
                     });
 
+                    // CH340/USB-UART adapters on Windows can take longer than
+                    // the esptool default while uploading the RAM stub.
+                    this.esploader.DEFAULT_TIMEOUT = 10000;
+                    this.esploader.MAX_TIMEOUT = 240000;
+
                     const modeLabel = resetMode === 'no_reset' ? '保持下载模式' : '自动复位';
                     this.log(`正在连接设备（${modeLabel}，速率 ${baudRate}）...`, 'info');
+                    this.log('提示：正在上传 RAM 临时烧录程序，可能需要几秒钟...', 'info');
                     const chipName = await this.esploader.main(resetMode);
                     this.chip = chipName;
                     this.baudRate = baudRate;
