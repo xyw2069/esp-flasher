@@ -300,7 +300,7 @@ class ESPFlashApp {
         this.setStatus('busy', '准备烧录...');
         this.progressTitle.textContent = '正在加载固件...';
         this.clearLog();
-        this.writeLog(`烧录工具版本：20260908；目标：${this.selectedProduct.name}`, 'system');
+        this.writeLog(`烧录工具版本：20260909；目标：${this.selectedProduct.name}`, 'system');
         this.writeLog(`配置：${this.baudRateSelect.value} baud，${this.flashSizeSelect.value}，${this.flashModeSelect.value.toUpperCase()}，${this.flashFreqSelect.value}`, 'info');
 
         try {
