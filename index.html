@@ -288,13 +288,20 @@
 
                     <section class="log-panel" aria-label="烧录日志">
                         <div class="log-header">
-                            <span>烧录日志</span>
+                            <div class="log-title-group">
+                                <span>烧录日志</span>
+                                <label class="switch-label" title="显示或隐藏烧录日志">
+                                    <input type="checkbox" id="logVisibilityToggle" aria-controls="logArea">
+                                    <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
+                                    <span>显示</span>
+                                </label>
+                            </div>
                             <div class="log-actions">
                                 <button id="copyLog" class="btn btn-ghost btn-sm" type="button">复制</button>
                                 <button id="clearLog" class="btn btn-ghost btn-sm" type="button">清空</button>
                             </div>
                         </div>
-                        <div id="logArea" class="log-area" role="log" aria-live="polite">
+                        <div id="logArea" class="log-area" role="log" aria-live="polite" hidden>
                             <div class="log-line system"><span class="timestamp">--:--:--</span><span>等待开始烧录</span></div>
                         </div>
                     </section>
@@ -318,9 +325,9 @@
     <!-- Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="products.js?v=20260912"></script>
-    <script src="buffer-polyfill.js?v=20260912"></script>
-    <script src="esp32-flasher.js?v=20260912"></script>
-    <script src="app.js?v=20260912"></script>
+    <script src="products.js?v=20260913"></script>
+    <script src="buffer-polyfill.js?v=20260913"></script>
+    <script src="esp32-flasher.js?v=20260913"></script>
+    <script src="app.js?v=20260913"></script>
 </body>
 </html>

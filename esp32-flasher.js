@@ -10,6 +10,7 @@ class ESP32Flasher {
         this.flashMode  = options.flashMode || 'dio';
         this.flashFreq  = options.flashFreq || '40m';
         this.eraseAll   = options.eraseAll || false;
+        this.verify     = options.verify === true;
         this.onLog      = options.onLog     || (() => {});
         this.onProgress = options.onProgress || (() => {});
 
@@ -43,9 +44,9 @@ class ESP32Flasher {
 
         const baudRates = (options.baudRates || [this.baudRate, 460800, 115200])
             .filter((rate, index, rates) => rates.indexOf(rate) === index);
-        // 页面要求用户手动进入下载模式，因此先保持当前模式读取 Bootloader；
-        // 对支持 DTR/RTS 自动复位的开发板，再回退到自动复位连接。
-        const resetModes = options.resetModes || ['no_reset', 'default_reset'];
+        // Use automatic reset first so the normal connection path does not
+        // spend time retrying a board that is not already in download mode.
+        const resetModes = options.resetModes || ['default_reset'];
         let lastError;
         let stubUploadFailed = false;
         let uploadingStub = false;
@@ -100,8 +101,6 @@ class ESP32Flasher {
                     await this.disconnect();
                     if (baudRate !== baudRates[baudRates.length - 1]) {
                         this.log(`${baudRate} 连接失败：${err.message || err}，尝试降低速率...`, 'warning');
-                    } else if (resetMode === resetModes[0]) {
-                        this.log('保持下载模式连接失败，尝试自动复位...', 'warning');
                     }
                 }
             }
@@ -159,6 +158,7 @@ class ESP32Flasher {
                 flashFreq:  this.flashFreq,
                 eraseAll:   this.eraseAll,
                 compress:   true,
+                ...(this.verify ? { calculateMD5Hash: md5Hex } : {}),
                 reportProgress: (fileIndex, written, total) => {
                     if (self.isAborted) return;
                     const file = files[fileIndex];
@@ -207,7 +207,7 @@ class ESP32Flasher {
                     this.baudRate = baudRate;
                     // A failed write may leave the ROM at the previous high speed.
                     // Auto-reset returns it to a known bootloader state before retrying.
-                    await this.connect(this.port, { resetModes: ['default_reset', 'no_reset'] });
+                    await this.connect(this.port, { resetModes: ['default_reset'] });
                 }
                 await this.flash(files);
                 return;
@@ -234,3 +234,74 @@ class ESP32Flasher {
 }
 
 window.ESP32Flasher = ESP32Flasher;
+
+// esptool-js calls this synchronously to calculate the expected post-write MD5.
+function md5Hex(input) {
+    const bytes = input instanceof Uint8Array ? input : new Uint8Array(input);
+    const bitLength = bytes.length * 8;
+    const paddedLength = ((bytes.length + 9 + 63) >> 6) << 6;
+    const data = new Uint8Array(paddedLength);
+    data.set(bytes);
+    data[bytes.length] = 0x80;
+    const view = new DataView(data.buffer);
+    view.setUint32(paddedLength - 8, bitLength >>> 0, true);
+    view.setUint32(paddedLength - 4, Math.floor(bitLength / 0x100000000), true);
+
+    let a0 = 0x67452301;
+    let b0 = 0xefcdab89;
+    let c0 = 0x98badcfe;
+    let d0 = 0x10325476;
+    const shifts = [
+        7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22, 7, 12, 17, 22,
+        5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20, 5, 9, 14, 20,
+        4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23, 4, 11, 16, 23,
+        6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21, 6, 10, 15, 21,
+    ];
+    const constants = Array.from({ length: 64 }, (_, i) => Math.floor(Math.abs(Math.sin(i + 1)) * 0x100000000));
+
+    for (let offset = 0; offset < data.length; offset += 64) {
+        const words = new Uint32Array(16);
+        for (let i = 0; i < 16; i++) words[i] = view.getUint32(offset + i * 4, true);
+        let a = a0;
+        let b = b0;
+        let c = c0;
+        let d = d0;
+
+        for (let i = 0; i < 64; i++) {
+            let f;
+            let g;
+            if (i < 16) {
+                f = (b & c) | (~b & d);
+                g = i;
+            } else if (i < 32) {
+                f = (d & b) | (~d & c);
+                g = (5 * i + 1) % 16;
+            } else if (i < 48) {
+                f = b ^ c ^ d;
+                g = (3 * i + 5) % 16;
+            } else {
+                f = c ^ (b | ~d);
+                g = (7 * i) % 16;
+            }
+            const previousD = d;
+            const sum = (a + f + constants[i] + words[g]) >>> 0;
+            d = c;
+            c = b;
+            b = (b + ((sum << shifts[i]) | (sum >>> (32 - shifts[i])))) >>> 0;
+            a = previousD;
+        }
+
+        a0 = (a0 + a) >>> 0;
+        b0 = (b0 + b) >>> 0;
+        c0 = (c0 + c) >>> 0;
+        d0 = (d0 + d) >>> 0;
+    }
+
+    const digest = new Uint8Array(16);
+    const output = new DataView(digest.buffer);
+    output.setUint32(0, a0, true);
+    output.setUint32(4, b0, true);
+    output.setUint32(8, c0, true);
+    output.setUint32(12, d0, true);
+    return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('');
+}

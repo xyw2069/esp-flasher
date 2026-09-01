@@ -62,6 +62,7 @@ class ESPFlashApp {
         this.progressStage   = document.getElementById('progressStage');
         this.flashBtn        = document.getElementById('flashBtn');
         this.logArea         = document.getElementById('logArea');
+        this.logVisibilityToggle = document.getElementById('logVisibilityToggle');
         this.copyLogBtn      = document.getElementById('copyLog');
         this.clearLogBtn     = document.getElementById('clearLog');
 
@@ -97,6 +98,12 @@ class ESPFlashApp {
         }
         if (this.clearLogBtn) {
             this.clearLogBtn.addEventListener('click', () => this.clearLog());
+        }
+        if (this.logVisibilityToggle) {
+            this.logVisibilityToggle.addEventListener('change', () => {
+                this.setLogVisibility(this.logVisibilityToggle.checked);
+            });
+            this.setLogVisibility(false);
         }
     }
 
@@ -310,7 +317,7 @@ class ESPFlashApp {
         this.setProductSelectionLocked(true);
         this.progressTitle.textContent = '正在加载固件...';
         this.clearLog();
-        this.writeLog(`烧录工具版本：20260912；目标：${this.selectedProduct.name}`, 'system');
+        this.writeLog(`烧录工具版本：20260913；目标：${this.selectedProduct.name}`, 'system');
         this.writeLog(`配置：${this.baudRateSelect.value} baud，${this.flashSizeSelect.value}，${this.flashModeSelect.value.toUpperCase()}，${this.flashFreqSelect.value}`, 'info');
 
         try {
@@ -322,6 +329,7 @@ class ESPFlashApp {
                 flashMode: this.flashModeSelect.value,
                 flashFreq: this.flashFreqSelect.value,
                 eraseAll: this.eraseCheckbox.checked,
+                verify: this.verifyCheckbox.checked,
                 onLog: (message, type = 'info') => this.writeLog(message, type),
                 onProgress: (percent, stage) => {
                     this.progressTitle.textContent = '正在烧录固件...';
@@ -401,6 +409,10 @@ class ESPFlashApp {
     setProductSelectionLocked(locked) {
         this.productList.classList.toggle('selection-locked', locked);
         this.productList.setAttribute('aria-disabled', String(locked));
+    }
+
+    setLogVisibility(visible) {
+        if (this.logArea) this.logArea.hidden = !visible;
     }
 
     /* ========================= 烧录日志 ========================= */
