@@ -226,6 +226,11 @@ body {
     overflow-y: auto;
 }
 
+.product-list.selection-locked {
+    pointer-events: none;
+    opacity: 0.55;
+}
+
 .product-item {
     display: flex;
     align-items: center;

@@ -7,6 +7,7 @@ class ESPFlashApp {
         this.currentStep   = 1;
         this.selectedProduct = null;
         this.flasher       = null;
+        this.isFlashing    = false;
 
         this.initElements();
         this.bindEvents();
@@ -73,7 +74,7 @@ class ESPFlashApp {
         // 产品列表 (通过事件委托)
         this.productList.addEventListener('click', (e) => {
             const item = e.target.closest('.product-item');
-            if (item) this.selectProduct(parseInt(item.dataset.id, 10));
+            if (item && !this.isFlashing) this.selectProduct(parseInt(item.dataset.id, 10));
         });
 
         // 版本下拉
@@ -297,6 +298,8 @@ class ESPFlashApp {
         }
 
         this.flashBtn.disabled = true;
+        this.isFlashing = true;
+        this.setProductSelectionLocked(true);
         this.setStatus('busy', '准备烧录...');
         this.progressTitle.textContent = '正在加载固件...';
         this.clearLog();
@@ -345,6 +348,8 @@ class ESPFlashApp {
         } finally {
             if (this.flasher) await this.flasher.disconnect();
             this.flasher = null;
+            this.isFlashing = false;
+            this.setProductSelectionLocked(false);
             this.flashBtn.disabled = false;
         }
     }
@@ -386,6 +391,11 @@ class ESPFlashApp {
         this.progressPercent.textContent = '0%';
         this.progressStage.textContent   = '就绪';
         this.progressTitle.textContent   = '等待开始...';
+    }
+
+    setProductSelectionLocked(locked) {
+        this.productList.classList.toggle('selection-locked', locked);
+        this.productList.setAttribute('aria-disabled', String(locked));
     }
 
     /* ========================= 烧录日志 ========================= */
