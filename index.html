@@ -294,6 +294,19 @@
                         <div class="progress-hint">开始前请按住 BOOT，短按 RESET/EN 后松开 BOOT；连接或烧录超时会自动降速重试。</div>
                     </div>
 
+                    <section class="log-panel" aria-label="烧录日志">
+                        <div class="log-header">
+                            <span>烧录日志</span>
+                            <div class="log-actions">
+                                <button id="copyLog" class="btn btn-ghost btn-sm" type="button">复制</button>
+                                <button id="clearLog" class="btn btn-ghost btn-sm" type="button">清空</button>
+                            </div>
+                        </div>
+                        <div id="logArea" class="log-area" role="log" aria-live="polite">
+                            <div class="log-line system"><span class="timestamp">--:--:--</span><span>等待开始烧录</span></div>
+                        </div>
+                    </section>
+
                     <div class="step-actions">
                         <div class="flash-actions">
                             <button id="flashBtn" class="btn btn-flash btn-lg">
@@ -313,9 +326,9 @@
     <!-- Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="products.js?v=20260904"></script>
-    <script src="buffer-polyfill.js?v=20260904"></script>
-    <script src="esp32-flasher.js?v=20260904"></script>
-    <script src="app.js?v=20260904"></script>
+    <script src="products.js?v=20260905"></script>
+    <script src="buffer-polyfill.js?v=20260905"></script>
+    <script src="esp32-flasher.js?v=20260905"></script>
+    <script src="app.js?v=20260905"></script>
 </body>
 </html>

@@ -61,6 +61,9 @@ class ESPFlashApp {
         this.progressGlow    = document.getElementById('progressGlow');
         this.progressStage   = document.getElementById('progressStage');
         this.flashBtn        = document.getElementById('flashBtn');
+        this.logArea         = document.getElementById('logArea');
+        this.copyLogBtn      = document.getElementById('copyLog');
+        this.clearLogBtn     = document.getElementById('clearLog');
 
         // 状态点
         this.browserDot      = document.getElementById('browserDot');
@@ -88,6 +91,12 @@ class ESPFlashApp {
         // 旧版 HTML 可能被 CDN 短暂缓存，避免缺少新按钮时阻断产品列表渲染。
         if (this.flashBtn) {
             this.flashBtn.addEventListener('click', () => this.startFlashing());
+        }
+        if (this.copyLogBtn) {
+            this.copyLogBtn.addEventListener('click', () => this.copyLog());
+        }
+        if (this.clearLogBtn) {
+            this.clearLogBtn.addEventListener('click', () => this.clearLog());
         }
     }
 
@@ -224,6 +233,7 @@ class ESPFlashApp {
 
     async requestSerialPort() {
         try {
+            this.writeLog('正在请求选择串口...', 'info');
             const port = await navigator.serial.requestPort();
             this.selectedPort = port;
 
@@ -231,13 +241,21 @@ class ESPFlashApp {
             this.connectionStatus.querySelector('.status-dot').className = 'status-dot connected';
             this.connectionStatus.querySelector('.status-text').textContent = '已连接';
             this.statusDetail.textContent = '串口已选择';
+            const info = port.getInfo ? port.getInfo() : {};
+            const usbInfo = info.usbVendorId && info.usbProductId
+                ? `已选择串口（VID 0x${info.usbVendorId.toString(16)}，PID 0x${info.usbProductId.toString(16)}）`
+                : '已选择串口';
+            this.writeLog(usbInfo, 'success');
 
             // 启用"下一步"按钮
             this.toStep3Btn.disabled = false;
             this.goToStep(3);
         } catch (err) {
             if (err.name !== 'NotFoundError') {
+                this.writeLog(`选择串口失败：${err.message || err}`, 'error');
                 this.toast('串口连接失败', 'error');
+            } else {
+                this.writeLog('已取消选择串口。', 'warning');
             }
         }
     }
@@ -281,15 +299,20 @@ class ESPFlashApp {
         this.flashBtn.disabled = true;
         this.setStatus('busy', '准备烧录...');
         this.progressTitle.textContent = '正在加载固件...';
+        this.clearLog();
+        this.writeLog(`烧录工具版本：20260905；目标：${this.selectedProduct.name}`, 'system');
+        this.writeLog(`配置：${this.baudRateSelect.value} baud，${this.flashSizeSelect.value}，${this.flashModeSelect.value.toUpperCase()}，${this.flashFreqSelect.value}`, 'info');
 
         try {
             const firmware = await this.loadFirmware(version);
+            this.writeLog(`固件已加载：${firmware.name}，${this.formatSize(firmware.data.length)}，地址 0x${firmware.address.toString(16)}`, 'success');
             this.flasher = new ESP32Flasher({
                 baudRate: parseInt(this.baudRateSelect.value, 10),
                 flashSize: this.flashSizeSelect.value,
                 flashMode: this.flashModeSelect.value,
                 flashFreq: this.flashFreqSelect.value,
                 eraseAll: this.eraseCheckbox.checked,
+                onLog: (message, type = 'info') => this.writeLog(message, type),
                 onProgress: (percent, stage) => {
                     this.progressTitle.textContent = '正在烧录固件...';
                     this.updateProgress(percent, stage);
@@ -314,6 +337,7 @@ class ESPFlashApp {
             this.progressTitle.textContent = '烧录失败';
             const message = err.message || '发生未知错误';
             this.progressStage.textContent = message;
+            this.writeLog(`烧录失败：${message}`, 'error');
             const hint = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response/i.test(message)
                 ? '（已自动尝试 460800 和 115200；仍失败时请重新进入下载模式后重试）'
                 : '';
@@ -367,6 +391,42 @@ class ESPFlashApp {
         this.progressPercent.textContent = '0%';
         this.progressStage.textContent   = '就绪';
         this.progressTitle.textContent   = '等待开始...';
+    }
+
+    /* ========================= 烧录日志 ========================= */
+
+    writeLog(message, type = 'info') {
+        if (!this.logArea) return;
+        const line = document.createElement('div');
+        line.className = `log-line ${type}`;
+        const timestamp = document.createElement('span');
+        timestamp.className = 'timestamp';
+        timestamp.textContent = this.timestamp();
+        const content = document.createElement('span');
+        content.textContent = String(message).replace(/\r?\n/g, ' ');
+        line.append(timestamp, content);
+        this.logArea.appendChild(line);
+        this.logArea.scrollTop = this.logArea.scrollHeight;
+    }
+
+    clearLog() {
+        if (!this.logArea) return;
+        this.logArea.replaceChildren();
+    }
+
+    async copyLog() {
+        if (!this.logArea) return;
+        const text = this.logArea.innerText.trim();
+        if (!text) {
+            this.toast('暂无烧录日志', 'warning');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(text);
+            this.toast('烧录日志已复制', 'success');
+        } catch (_) {
+            this.toast('无法复制日志，请直接选中日志内容', 'warning');
+        }
     }
 
     /* ========================= 通知 ========================= */
