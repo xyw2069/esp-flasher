@@ -302,7 +302,7 @@ class ESPFlashApp {
             if (this.eraseCheckbox.checked) {
                 this.progressTitle.textContent = '正在擦除 Flash...';
             }
-            await this.flasher.flash([firmware]);
+            await this.flasher.flashWithFallback([firmware]);
 
             this.setStatus('ready', '完成');
             this.progressTitle.textContent = '烧录完成';
@@ -314,8 +314,8 @@ class ESPFlashApp {
             this.progressTitle.textContent = '烧录失败';
             const message = err.message || '发生未知错误';
             this.progressStage.textContent = message;
-            const hint = /timeout/i.test(message)
-                ? '，请将波特率降至 460800 或 115200 后重试'
+            const hint = /timeout|timed out/i.test(message)
+                ? '（已自动尝试 460800 和 115200；仍失败时请重新进入下载模式后重试）'
                 : '';
             this.toast(`烧录失败：${message}${hint}`, 'error');
         } finally {

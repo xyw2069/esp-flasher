@@ -16,6 +16,7 @@ class ESP32Flasher {
         this.transport = null;
         this.esploader = null;
         this.chip      = null;
+        this.port      = null;
         this.isFlashing = false;
         this.isAborted  = false;
     }
@@ -38,6 +39,7 @@ class ESP32Flasher {
             this.log('正在请求串口...', 'info');
             port = await navigator.serial.requestPort();
         }
+        this.port = port;
 
         const baudRates = [this.baudRate, 460800, 115200]
             .filter((rate, index, rates) => rates.indexOf(rate) === index);
@@ -148,6 +150,39 @@ class ESP32Flasher {
         } finally {
             this.isFlashing = false;
         }
+    }
+
+    /**
+     * 烧录阶段超时时，重新连接并自动降低串口速率重试。
+     * 连接阶段的降速不能覆盖写 Flash 阶段的超时，因此这里也要重建 loader。
+     */
+    async flashWithFallback(files) {
+        const baudRates = [this.baudRate, 460800, 115200]
+            .filter((rate, index, rates) => rates.indexOf(rate) === index);
+        let lastError;
+
+        for (let index = 0; index < baudRates.length; index++) {
+            const baudRate = baudRates[index];
+            try {
+                if (index > 0) {
+                    this.log(`烧录超时，正在以 ${baudRate} 重连并重试...`, 'warning');
+                    await this.disconnect();
+                    this.baudRate = baudRate;
+                    await this.connect(this.port);
+                }
+                await this.flash(files);
+                return;
+            } catch (err) {
+                lastError = err;
+                const message = String(err && err.message || err);
+                const isTimeout = /timeout|timed out/i.test(message);
+                if (!isTimeout || index === baudRates.length - 1) {
+                    throw err;
+                }
+            }
+        }
+
+        throw lastError || new Error('设备连接超时');
     }
 
     abort() {
