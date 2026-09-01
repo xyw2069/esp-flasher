@@ -300,7 +300,7 @@ class ESPFlashApp {
         this.setStatus('busy', '准备烧录...');
         this.progressTitle.textContent = '正在加载固件...';
         this.clearLog();
-        this.writeLog(`烧录工具版本：20260905；目标：${this.selectedProduct.name}`, 'system');
+        this.writeLog(`烧录工具版本：20260907；目标：${this.selectedProduct.name}`, 'system');
         this.writeLog(`配置：${this.baudRateSelect.value} baud，${this.flashSizeSelect.value}，${this.flashModeSelect.value.toUpperCase()}，${this.flashFreqSelect.value}`, 'info');
 
         try {
@@ -363,12 +363,7 @@ class ESPFlashApp {
         }
         if (!response.ok) throw new Error(`固件加载失败 (${response.status})：${url}`);
 
-        const bytes = new Uint8Array(await response.arrayBuffer());
-        const chunkSize = 0x8000;
-        let data = '';
-        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-            data += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
-        }
+        const data = new Uint8Array(await response.arrayBuffer());
         return { name: version.file, address: version.address, data };
     }
 
