@@ -23,7 +23,7 @@ class ESP32Flasher {
 
     log(msg, type = 'info') { this.onLog(msg, type); }
 
-    async connect(port) {
+    async connect(port, options = {}) {
         this.log('正在加载 esptool-js...', 'info');
         const bundleUrl = new URL('./esptool-bundle.js', document.baseURI).href;
         let module;
@@ -45,7 +45,7 @@ class ESP32Flasher {
             .filter((rate, index, rates) => rates.indexOf(rate) === index);
         // 页面要求用户手动进入下载模式，因此先保持当前模式读取 Bootloader；
         // 对支持 DTR/RTS 自动复位的开发板，再回退到自动复位连接。
-        const resetModes = ['no_reset', 'default_reset'];
+        const resetModes = options.resetModes || ['no_reset', 'default_reset'];
         let lastError;
 
         for (const resetMode of resetModes) {
@@ -168,15 +168,19 @@ class ESP32Flasher {
                     this.log(`烧录超时，正在以 ${baudRate} 重连并重试...`, 'warning');
                     await this.disconnect();
                     this.baudRate = baudRate;
-                    await this.connect(this.port);
+                    // A failed write may leave the ROM at the previous high speed.
+                    // Auto-reset returns it to a known bootloader state before retrying.
+                    await this.connect(this.port, { resetModes: ['default_reset', 'no_reset'] });
                 }
                 await this.flash(files);
                 return;
             } catch (err) {
                 lastError = err;
                 const message = String(err && err.message || err);
-                const isTimeout = /timeout|timed out/i.test(message);
-                if (!isTimeout || index === baudRates.length - 1) {
+                // esptool-js may expose a generic connection/stub error instead
+                // of the literal "Timeout" even though a lower baud rate fixes it.
+                const isRecoverable = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response/i.test(message);
+                if (!isRecoverable || index === baudRates.length - 1) {
                     throw err;
                 }
             }
