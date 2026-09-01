@@ -111,7 +111,7 @@ class ESP32Flasher {
             try {
                 return await this.connect(port, {
                     baudRates: [115200],
-                    resetModes: ['default_reset', 'no_reset'],
+                    resetModes: ['default_reset'],
                     skipStub: true,
                 });
             } catch (romError) {
