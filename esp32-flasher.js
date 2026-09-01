@@ -5,7 +5,7 @@
 class ESP32Flasher {
     constructor(options = {}) {
         this.chipType   = options.chipType || 'esp32c3';
-        this.baudRate   = options.baudRate || 460800;
+        this.baudRate   = options.baudRate || 921600;
         this.flashSize  = options.flashSize || '4MB';
         this.flashMode  = options.flashMode || 'dio';
         this.flashFreq  = options.flashFreq || '40m';

@@ -37,7 +37,6 @@ class ESPFlashApp {
 
         // Step 1 - 固件
         this.versionSelect   = document.getElementById('versionSelect');
-        this.refreshVersions = document.getElementById('refreshVersions');
         this.fileList        = document.getElementById('fileList');
         this.baudRateSelect  = document.getElementById('baudRate');
         this.flashSizeSelect = document.getElementById('flashSize');
@@ -124,6 +123,16 @@ class ESPFlashApp {
         const product = PRODUCT_DB.find(p => p.id === id);
         if (!product) return;
 
+        const isSwitchingProduct = this.selectedProduct && this.selectedProduct.id !== id;
+        if (isSwitchingProduct && !this.isFlashing) {
+            // A different product starts a fresh workflow. Do not reuse the
+            // previous board's selected port or leave the user on step 3.
+            this.selectedPort = null;
+            this.resetConnectionStatus();
+            this.goToStep(1);
+            this.clearLog();
+        }
+
         this.selectedProduct = product;
 
         // 更新侧边栏选中态
@@ -137,7 +146,6 @@ class ESPFlashApp {
         // 更新版本下拉
         this.versionSelect.innerHTML = '';
         this.versionSelect.disabled = false;
-        this.refreshVersions.disabled = false;
 
         product.versions.forEach(v => {
             const opt = document.createElement('option');
@@ -300,10 +308,9 @@ class ESPFlashApp {
         this.flashBtn.disabled = true;
         this.isFlashing = true;
         this.setProductSelectionLocked(true);
-        this.setStatus('busy', '准备烧录...');
         this.progressTitle.textContent = '正在加载固件...';
         this.clearLog();
-        this.writeLog(`烧录工具版本：20260910；目标：${this.selectedProduct.name}`, 'system');
+        this.writeLog(`烧录工具版本：20260912；目标：${this.selectedProduct.name}`, 'system');
         this.writeLog(`配置：${this.baudRateSelect.value} baud，${this.flashSizeSelect.value}，${this.flashModeSelect.value.toUpperCase()}，${this.flashFreqSelect.value}`, 'info');
 
         try {
@@ -330,13 +337,11 @@ class ESPFlashApp {
             }
             await this.flasher.flashWithFallback([firmware]);
 
-            this.setStatus('ready', '完成');
             this.progressTitle.textContent = '烧录完成';
             this.updateProgress(100, '烧录完成');
             this.toast('烧录完成！', 'success');
         } catch (err) {
             console.error(err);
-            this.setStatus('error', '失败');
             this.progressTitle.textContent = '烧录失败';
             const message = err.message || '发生未知错误';
             this.progressStage.textContent = message;
