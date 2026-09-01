@@ -12,6 +12,7 @@ class ESPFlashApp {
         this.bindEvents();
         this.initProducts();
         this.checkSerialSupport();
+        this.checkSecurePage();
     }
 
     /* ========================= 初始化 ========================= */
@@ -321,6 +322,9 @@ class ESPFlashApp {
     }
 
     async loadFirmware(version) {
+        if (window.location.protocol === 'file:') {
+            throw new Error('当前页面是通过 file:// 打开的，请先运行“启动服务器.bat”，再访问 http://localhost:8080');
+        }
         const relativePath = `${this.selectedProduct.firmwarePath}/${version.file}`;
         const url = new URL(relativePath, document.baseURI).href;
         let response;
@@ -382,6 +386,15 @@ class ESPFlashApp {
             this.browserDot.className = 'check-dot unsupported';
             this.browserDot.title = '浏览器不支持 Web Serial API，请使用 Chrome 89+ 或 Edge 89+';
             this.connectBtn.disabled = true;
+        }
+    }
+
+    checkSecurePage() {
+        if (window.location.protocol === 'file:') {
+            this.connectBtn.disabled = true;
+            this.browserDot.className = 'check-dot unsupported';
+            this.browserDot.title = '请通过 http://localhost:8080 或 HTTPS 打开页面';
+            this.toast('请运行“启动服务器.bat”，再访问 http://localhost:8080', 'error');
         }
     }
 

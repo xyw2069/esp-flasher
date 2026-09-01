@@ -29,6 +29,8 @@ npx serve .
 
 也可以直接双击 `启动服务器.bat`（Windows）。
 
+> 不要直接双击 `index.html` 打开。浏览器不允许 `file://` 页面读取固件文件，Web Serial 也需要通过 `localhost` 或 HTTPS 访问。
+
 ### 浏览器要求
 
 - **Chrome 89+** 或 **Edge 89+**
