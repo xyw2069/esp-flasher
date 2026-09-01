@@ -39,30 +39,42 @@ class ESP32Flasher {
             port = await navigator.serial.requestPort();
         }
 
-        // 关闭逐包追踪，避免大量控制台输出拖慢高波特率烧录。
-        this.transport = new Transport(port, false);
+        const baudRates = [this.baudRate, 460800, 115200]
+            .filter((rate, index, rates) => rates.indexOf(rate) === index);
+        let lastError;
 
-        this.esploader = new ESPLoader({
-            transport: this.transport,
-            // 先以 ROM 固定速率同步，再由 esptool-js 切换到所选烧录速率。
-            baudrate:  this.baudRate,
-            terminal: {
-                clean: () => {},
-                writeLine: (message) => this.log(message),
-                write: (message) => this.log(message),
-            },
-        });
+        for (const baudRate of baudRates) {
+            try {
+                // 关闭逐包追踪，并增大串口缓冲，减少高速传输丢包。
+                this.transport = new Transport(port, false);
+                this.esploader = new ESPLoader({
+                    transport: this.transport,
+                    // ROM 先以 115200 同步，再切换到目标速率。
+                    baudrate: baudRate,
+                    serialOptions: { bufferSize: 65536 },
+                    terminal: {
+                        clean: () => {},
+                        writeLine: (message) => this.log(message),
+                        write: (message) => this.log(message),
+                    },
+                });
 
-        this.log('正在连接并识别芯片（会自动进入下载模式）...', 'info');
-        try {
-            const chipName = await this.esploader.main();
-            this.chip = chipName;
-            this.log(`芯片已识别: ${chipName}`, 'success');
-        } catch (err) {
-            this.log('连接失败: ' + err.message, 'error');
-            await this.disconnect();
-            throw err;
+                this.log(`正在连接设备（烧录速率 ${baudRate}）...`, 'info');
+                const chipName = await this.esploader.main();
+                this.chip = chipName;
+                this.baudRate = baudRate;
+                this.log(`芯片已识别: ${chipName}，速率 ${baudRate}`, 'success');
+                return;
+            } catch (err) {
+                lastError = err;
+                await this.disconnect();
+                if (baudRate !== baudRates[baudRates.length - 1]) {
+                    this.log(`${baudRate} 连接超时，尝试降低速率...`, 'warning');
+                }
+            }
         }
+
+        throw lastError || new Error('设备连接超时');
     }
 
     async disconnect() {

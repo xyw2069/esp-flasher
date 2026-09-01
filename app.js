@@ -312,8 +312,12 @@ class ESPFlashApp {
             console.error(err);
             this.setStatus('error', '失败');
             this.progressTitle.textContent = '烧录失败';
-            this.progressStage.textContent = err.message || '发生未知错误';
-            this.toast(`烧录失败：${err.message || '未知错误'}`, 'error');
+            const message = err.message || '发生未知错误';
+            this.progressStage.textContent = message;
+            const hint = /timeout/i.test(message)
+                ? '，请将波特率降至 460800 或 115200 后重试'
+                : '';
+            this.toast(`烧录失败：${message}${hint}`, 'error');
         } finally {
             if (this.flasher) await this.flasher.disconnect();
             this.flasher = null;
