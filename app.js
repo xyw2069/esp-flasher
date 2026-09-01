@@ -321,9 +321,15 @@ class ESPFlashApp {
     }
 
     async loadFirmware(version) {
-        const url = `${this.selectedProduct.firmwarePath}/${version.file}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`固件加载失败 (${response.status})`);
+        const relativePath = `${this.selectedProduct.firmwarePath}/${version.file}`;
+        const url = new URL(relativePath, document.baseURI).href;
+        let response;
+        try {
+            response = await fetch(url, { cache: 'no-store' });
+        } catch (err) {
+            throw new Error(`固件无法下载：${url}（${err.message}）`);
+        }
+        if (!response.ok) throw new Error(`固件加载失败 (${response.status})：${url}`);
 
         const bytes = new Uint8Array(await response.arrayBuffer());
         const chunkSize = 0x8000;

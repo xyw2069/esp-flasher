@@ -24,7 +24,13 @@ class ESP32Flasher {
 
     async connect(port) {
         this.log('正在加载 esptool-js...', 'info');
-        const module = await import('./esptool-bundle.js');
+        const bundleUrl = new URL('./esptool-bundle.js', document.baseURI).href;
+        let module;
+        try {
+            module = await import(bundleUrl);
+        } catch (err) {
+            throw new Error(`烧录器组件无法加载：${bundleUrl}（${err.message}）`);
+        }
         const ESPLoader = module.ESPLoader;
         const Transport = module.Transport;
 
