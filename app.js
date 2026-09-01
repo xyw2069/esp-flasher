@@ -338,7 +338,7 @@ class ESPFlashApp {
             const message = err.message || '发生未知错误';
             this.progressStage.textContent = message;
             this.writeLog(`烧录失败：${message}`, 'error');
-            const hint = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response/i.test(message)
+            const hint = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response|no serial data|invalid head|serial .*error/i.test(message)
                 ? '（已自动尝试 460800 和 115200；仍失败时请重新进入下载模式后重试）'
                 : '';
             this.toast(`烧录失败：${message}${hint}`, 'error');

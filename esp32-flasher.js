@@ -41,12 +41,14 @@ class ESP32Flasher {
         }
         this.port = port;
 
-        const baudRates = [this.baudRate, 460800, 115200]
+        const baudRates = (options.baudRates || [this.baudRate, 460800, 115200])
             .filter((rate, index, rates) => rates.indexOf(rate) === index);
         // 页面要求用户手动进入下载模式，因此先保持当前模式读取 Bootloader；
         // 对支持 DTR/RTS 自动复位的开发板，再回退到自动复位连接。
         const resetModes = options.resetModes || ['no_reset', 'default_reset'];
         let lastError;
+        let stubUploadFailed = false;
+        let uploadingStub = false;
 
         for (const resetMode of resetModes) {
             for (const baudRate of baudRates) {
@@ -69,24 +71,53 @@ class ESP32Flasher {
                     // the esptool default while uploading the RAM stub.
                     this.esploader.DEFAULT_TIMEOUT = 10000;
                     this.esploader.MAX_TIMEOUT = 240000;
+                    if (options.skipStub) {
+                        this.esploader.runStub = async function () {
+                            this.info('跳过 RAM 临时烧录程序，使用 ROM 直写模式');
+                            this.IS_STUB = false;
+                            return this.chip;
+                        };
+                    }
 
                     const modeLabel = resetMode === 'no_reset' ? '保持下载模式' : '自动复位';
                     this.log(`正在连接设备（${modeLabel}，速率 ${baudRate}）...`, 'info');
-                    this.log('提示：正在上传 RAM 临时烧录程序，可能需要几秒钟...', 'info');
+                    uploadingStub = !options.skipStub;
+                    if (uploadingStub) {
+                        this.log('提示：正在上传 RAM 临时烧录程序，可能需要几秒钟...', 'info');
+                    }
                     const chipName = await this.esploader.main(resetMode);
+                    uploadingStub = false;
                     this.chip = chipName;
                     this.baudRate = baudRate;
                     this.log(`芯片已识别: ${chipName}，速率 ${baudRate}`, 'success');
                     return;
                 } catch (err) {
                     lastError = err;
+                    if (uploadingStub) {
+                        stubUploadFailed = true;
+                    }
+                    uploadingStub = false;
                     await this.disconnect();
                     if (baudRate !== baudRates[baudRates.length - 1]) {
-                        this.log(`${baudRate} 连接超时，尝试降低速率...`, 'warning');
+                        this.log(`${baudRate} 连接失败：${err.message || err}，尝试降低速率...`, 'warning');
                     } else if (resetMode === resetModes[0]) {
                         this.log('保持下载模式连接失败，尝试自动复位...', 'warning');
                     }
                 }
+            }
+        }
+
+        if (stubUploadFailed && !options.skipStub) {
+            this.log('RAM 临时烧录程序上传失败，切换到 ESP32 ROM 直写模式...', 'warning');
+            try {
+                return await this.connect(port, {
+                    baudRates: [115200],
+                    resetModes: ['default_reset', 'no_reset'],
+                    skipStub: true,
+                });
+            } catch (romError) {
+                lastError = romError;
+                this.log(`ROM 直写模式也失败：${romError.message || romError}`, 'error');
             }
         }
 
@@ -185,7 +216,7 @@ class ESP32Flasher {
                 const message = String(err && err.message || err);
                 // esptool-js may expose a generic connection/stub error instead
                 // of the literal "Timeout" even though a lower baud rate fixes it.
-                const isRecoverable = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response/i.test(message);
+                const isRecoverable = /timeout|timed out|failed to connect|invalid response|failed to start stub|unexpected response|no serial data|invalid head|serial .*error/i.test(message);
                 if (!isRecoverable || index === baudRates.length - 1) {
                     throw err;
                 }
