@@ -171,7 +171,7 @@
                             <span>烧录前擦除 Flash</span>
                         </label>
                         <label class="checkbox-label">
-                            <input type="checkbox" id="verifyFlash" checked>
+                            <input type="checkbox" id="verifyFlash">
                             <span class="checkmark"></span>
                             <span>烧录后验证</span>
                         </label>
@@ -293,10 +293,9 @@
                                 <label class="switch-label" title="显示或隐藏烧录日志">
                                     <input type="checkbox" id="logVisibilityToggle" aria-controls="logArea">
                                     <span class="switch-track" aria-hidden="true"><span class="switch-thumb"></span></span>
-                                    <span>显示</span>
                                 </label>
                             </div>
-                            <div class="log-actions">
+                            <div class="log-actions" hidden>
                                 <button id="copyLog" class="btn btn-ghost btn-sm" type="button">复制</button>
                                 <button id="clearLog" class="btn btn-ghost btn-sm" type="button">清空</button>
                             </div>
@@ -325,9 +324,9 @@
     <!-- Toast 通知 -->
     <div class="toast-container" id="toastContainer"></div>
 
-    <script src="products.js?v=20260913"></script>
-    <script src="buffer-polyfill.js?v=20260913"></script>
-    <script src="esp32-flasher.js?v=20260913"></script>
-    <script src="app.js?v=20260913"></script>
+    <script src="products.js?v=20260914"></script>
+    <script src="buffer-polyfill.js?v=20260914"></script>
+    <script src="esp32-flasher.js?v=20260914"></script>
+    <script src="app.js?v=20260914"></script>
 </body>
 </html>

@@ -63,6 +63,7 @@ class ESPFlashApp {
         this.flashBtn        = document.getElementById('flashBtn');
         this.logArea         = document.getElementById('logArea');
         this.logVisibilityToggle = document.getElementById('logVisibilityToggle');
+        this.logActions       = document.querySelector('.log-actions');
         this.copyLogBtn      = document.getElementById('copyLog');
         this.clearLogBtn     = document.getElementById('clearLog');
 
@@ -413,6 +414,7 @@ class ESPFlashApp {
 
     setLogVisibility(visible) {
         if (this.logArea) this.logArea.hidden = !visible;
+        if (this.logActions) this.logActions.hidden = !visible;
     }
 
     /* ========================= 烧录日志 ========================= */
