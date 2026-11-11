@@ -374,6 +374,15 @@ class ESPFlashApp {
         }
         const relativePath = `${this.selectedProduct.firmwarePath}/${version.file}`;
         const url = new URL(relativePath, document.baseURI).href;
+        const cacheKey = `${url}|${version.tag}|${version.date}`;
+
+        const cached = await FirmwareCache.get(cacheKey);
+        if (cached) {
+            this.writeLog(`使用缓存固件：${version.file}（${this.formatSize(cached.length)}），跳过下载`, 'success');
+            return { name: version.file, address: version.address, data: cached };
+        }
+
+        this.writeLog(`首次使用，正在下载固件：${version.file}`, 'info');
         let response;
         try {
             response = await fetch(url, { cache: 'no-store' });
@@ -383,6 +392,9 @@ class ESPFlashApp {
         if (!response.ok) throw new Error(`固件加载失败 (${response.status})：${url}`);
 
         const data = new Uint8Array(await response.arrayBuffer());
+        if (await FirmwareCache.set(cacheKey, data)) {
+            this.writeLog(`固件已缓存，下次烧录将直接使用本地副本`, 'info');
+        }
         return { name: version.file, address: version.address, data };
     }
 
@@ -502,6 +514,104 @@ class ESPFlashApp {
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 }
+
+/**
+ * 固件本地缓存（IndexedDB）。
+ * 缓存键包含固件 URL、版本号和日期，固件更新后旧缓存自动失效。
+ */
+const FirmwareCache = (() => {
+    const DB_NAME = 'esp-flasher';
+    const DB_VERSION = 1;
+    const STORE = 'firmware';
+    const MAX_ENTRIES = 3;
+    let dbPromise = null;
+
+    function openDb() {
+        if (dbPromise) return dbPromise;
+        dbPromise = new Promise((resolve, reject) => {
+            if (!window.indexedDB) {
+                reject(new Error('浏览器不支持 IndexedDB'));
+                return;
+            }
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+            request.onupgradeneeded = () => {
+                const db = request.result;
+                if (!db.objectStoreNames.contains(STORE)) {
+                    db.createObjectStore(STORE);
+                }
+            };
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error || new Error('无法打开缓存数据库'));
+        }).catch((err) => {
+            dbPromise = null;
+            throw err;
+        });
+        return dbPromise;
+    }
+
+    async function allKeys(db) {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readonly');
+            const req = tx.objectStore(STORE).getAllKeys();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function removeKeys(db, keys) {
+        if (!keys.length) return;
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite');
+            const store = tx.objectStore(STORE);
+            keys.forEach(key => store.delete(key));
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+        });
+    }
+
+    return {
+        async get(key) {
+            try {
+                const db = await openDb();
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE, 'readonly');
+                    const req = tx.objectStore(STORE).get(key);
+                    req.onsuccess = () => {
+                        const value = req.result;
+                        resolve(value instanceof Uint8Array && value.length > 0 ? value : null);
+                    };
+                    req.onerror = () => reject(req.error);
+                });
+            } catch (_) {
+                return null;
+            }
+        },
+
+        async set(key, bytes) {
+            try {
+                const db = await openDb();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE, 'readwrite');
+                    tx.objectStore(STORE).put(bytes, key);
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error);
+                });
+                // 控制缓存体积：同一固件地址只保留最新一份，并最多保留 MAX_ENTRIES 个
+                const keys = await allKeys(db);
+                const stalePrefix = keys.filter(k => k !== key && k.split('|')[0] === key.split('|')[0]);
+                const others = keys.filter(k => k !== key && !stalePrefix.includes(k));
+                const overflow = others.slice(0, Math.max(0, others.length + 1 - MAX_ENTRIES));
+                await removeKeys(db, stalePrefix.concat(overflow));
+                return true;
+            } catch (_) {
+                // 隐私模式或存储空间不足时静默降级为每次下载
+                return false;
+            }
+        },
+    };
+})();
 
 // 启动
 let app;
